@@ -6,6 +6,7 @@ config({ path: resolve(__dirname, '../../../.env') });
 
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import { RedisStore } from 'connect-redis';
@@ -22,8 +23,31 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  const isProduction = env.NODE_ENV === 'production';
+
   // Trust proxy for __Host- cookie prefix (requires Secure flag)
   app.set('trust proxy', 1);
+
+  // ──────────────────────────────────────────
+  // Security headers (Helmet.js)
+  // ──────────────────────────────────────────
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // For inline styles (Tailwind/Vite HMR)
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'", process.env.VITE_API_URL || 'http://localhost:5173'],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          upgradeInsecureRequests: isProduction ? [] : ['upgrade-insecure-requests'],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // Allow embedding (GraphQL Playground, etc.)
+    }),
+  );
 
   // ──────────────────────────────────────────
   // Redis client for sessions
@@ -33,8 +57,6 @@ async function bootstrap() {
     enableReadyCheck: true,
     maxRetriesPerRequest: 3,
   });
-
-  const isProduction = env.NODE_ENV === 'production';
 
   // ──────────────────────────────────────────
   // Session middleware (express-session + connect-redis)
@@ -112,9 +134,15 @@ async function bootstrap() {
   // ──────────────────────────────────────────
   // CORS
   // ──────────────────────────────────────────
+  const corsOrigin = isProduction
+    ? false // No CORS en producción (mismo origen)
+    : process.env.VITE_API_URL || 'http://localhost:5173';
+
   app.enableCors({
-    origin: env.NODE_ENV === 'production' ? false : true,
+    origin: corsOrigin,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
   });
 
   await app.listen(env.PORT_API);

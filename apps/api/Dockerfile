@@ -21,11 +21,17 @@ CMD ["pnpm", "dev"]
 FROM base AS build
 WORKDIR /app/apps/api
 RUN pnpm build
+# Prune devDependencies before copying to production
+RUN pnpm prune --prod
 
 # --- Production target ---
 FROM node:20-alpine AS production
 WORKDIR /app
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=build /app/apps/api/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
+RUN chown -R appuser:appgroup /app
+USER appuser
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

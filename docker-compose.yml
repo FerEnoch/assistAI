@@ -3,10 +3,13 @@ services:
   postgres:
     image: pgvector/pgvector:pg17
     container_name: assistai-postgres
+    networks:
+      - assistai-internal
     environment:
       POSTGRES_USER: assistai
       POSTGRES_PASSWORD: assistai_dev
       POSTGRES_DB: assistai
+    # Only expose to host for local development
     ports:
       - "5432:5432"
     volumes:
@@ -20,6 +23,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: assistai-redis
+    networks:
+      - assistai-internal
+    # Only expose to host for local development
     ports:
       - "6379:6379"
     volumes:
@@ -37,6 +43,7 @@ services:
       dockerfile: apps/web/Dockerfile
       target: dev
     container_name: assistai-web
+    # Only expose in development
     ports:
       - "5173:5173"
     volumes:
@@ -55,6 +62,7 @@ services:
       dockerfile: apps/api/Dockerfile
       target: dev
     container_name: assistai-api
+    # Only expose in development
     ports:
       - "3000:3000"
     volumes:
@@ -80,6 +88,7 @@ services:
       dockerfile: apps/worker/Dockerfile
       target: dev
     container_name: assistai-worker
+    # Worker does not need port exposure
     volumes:
       - ./apps/worker:/app/apps/worker
       - ./packages/shared:/app/packages/shared
@@ -103,6 +112,7 @@ services:
   ipfs:
     image: ipfs/kubo:latest
     container_name: assistai-ipfs
+    # IPFS ports only exposed in development, not in production
     ports:
       - "5001:5001"  # API
       - "8080:8080"  # Gateway
@@ -110,6 +120,11 @@ services:
       - ipfsdata:/data/ipfs
     profiles:
       - ipfs
+
+networks:
+  assistai-internal:
+    driver: bridge
+    internal: false  # Allow external for development; set true for production
 
 volumes:
   pgdata:

@@ -23,7 +23,14 @@ WORKDIR /app/apps/web
 RUN pnpm build
 
 # --- Production target ---
-FROM nginx:alpine AS production
+FROM nginx:1.27-alpine AS production
+# Create non-root user and configure nginx to run as non-root
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && chown -R appuser:appgroup /usr/share/nginx/html \
+    && chown -R appuser:appgroup /var/cache/nginx \
+    && touch /var/run/nginx.pid \
+    && chown appuser:appgroup /var/run/nginx.pid
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+USER appuser
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

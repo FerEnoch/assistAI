@@ -23,16 +23,16 @@
     "clean": "pnpm -r run clean"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.1.0",
-    "typescript-eslint": "^8.58.0"
+    "@eslint/js": "10.0.1",
+    "eslint": "10.1.0",
+    "typescript-eslint": "8.58.0"
   },
   "dependencies": {
-    "@langchain/textsplitters": "^0.1.0",
-    "@nestjs/bullmq": "^11.0.4",
-    "bullmq": "^5.71.1",
-    "googleapis": "^171.4.0",
-    "mammoth": "^1.12.0",
-    "pdfjs-dist": "^4.10.38"
+    "@langchain/textsplitters": "0.1.0",
+    "@nestjs/bullmq": "11.0.4",
+    "bullmq": "5.71.1",
+    "googleapis": "171.4.0",
+    "mammoth": "1.12.0",
+    "pdfjs-dist": "4.10.38"
   }
 }

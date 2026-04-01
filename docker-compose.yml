@@ -1,0 +1,117 @@
+services:
+  # --- Infrastructure ---
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: assistai-postgres
+    environment:
+      POSTGRES_USER: assistai
+      POSTGRES_PASSWORD: assistai_dev
+      POSTGRES_DB: assistai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assistai"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: assistai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # --- Applications ---
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: dev
+    container_name: assistai-web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./packages/shared:/app/packages/shared
+      - /app/node_modules
+      - /app/apps/web/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    container_name: assistai-api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./packages/shared:/app/packages/shared
+      - /app/node_modules
+      - /app/apps/api/node_modules
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://assistai:assistai_dev@postgres:5432/assistai
+      - REDIS_URL=redis://redis:6379
+      - PORT_API=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+      target: dev
+    container_name: assistai-worker
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - ./packages/shared:/app/packages/shared
+      - /app/node_modules
+      - /app/apps/worker/node_modules
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://assistai:assistai_dev@postgres:5432/assistai
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PORT_WORKER=3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # --- Optional Services ---
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: assistai-ipfs
+    ports:
+      - "5001:5001"  # API
+      - "8080:8080"  # Gateway
+    volumes:
+      - ipfsdata:/data/ipfs
+    profiles:
+      - ipfs
+
+volumes:
+  pgdata:
+  redisdata:
+  ipfsdata:

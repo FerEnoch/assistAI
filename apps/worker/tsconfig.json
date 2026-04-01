@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "@assistai/shared": ["../../packages/shared/src"],
+      "@assistai/shared/*": ["../../packages/shared/src/*"],
+      "@assistai/entities": ["../../packages/entities/src"],
+      "@assistai/entities/*": ["../../packages/entities/src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

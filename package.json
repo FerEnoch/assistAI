@@ -1,0 +1,38 @@
+{
+  "name": "assist-ai",
+  "version": "0.0.1",
+  "private": true,
+  "description": "AssistAI - AI writing assistant for Spanish-speaking legal professionals",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@nestjs/core"
+    ]
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "lint": "eslint 'apps/*/src/**/*.ts' 'packages/*/src/**/*.ts'",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "clean": "pnpm -r run clean"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "typescript-eslint": "^8.58.0"
+  },
+  "dependencies": {
+    "@langchain/textsplitters": "^0.1.0",
+    "@nestjs/bullmq": "^11.0.4",
+    "bullmq": "^5.71.1",
+    "googleapis": "^171.4.0",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^4.10.38"
+  }
+}

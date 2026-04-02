@@ -41,18 +41,12 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      target: dev
+      target: production
     container_name: assistai-web
-    # Only expose in development
+    networks:
+      - assistai-internal
     ports:
-      - "5173:5173"
-    volumes:
-      - ./apps/web:/app/apps/web
-      - ./packages/shared:/app/packages/shared
-      - /app/node_modules
-      - /app/apps/web/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:3000
+      - "80:80"
     depends_on:
       - api
 
@@ -60,22 +54,19 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-      target: dev
+      target: production
     container_name: assistai-api
-    # Only expose in development
+    networks:
+      - assistai-internal
     ports:
       - "3000:3000"
-    volumes:
-      - ./apps/api:/app/apps/api
-      - ./packages/shared:/app/packages/shared
-      - /app/node_modules
-      - /app/apps/api/node_modules
     env_file:
       - .env
     environment:
       - DATABASE_URL=postgresql://assistai:assistai_dev@postgres:5432/assistai
       - REDIS_URL=redis://redis:6379
       - PORT_API=3000
+      - WEB_URL=http://localhost
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,14 +77,10 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
-      target: dev
+      target: production
     container_name: assistai-worker
-    # Worker does not need port exposure
-    volumes:
-      - ./apps/worker:/app/apps/worker
-      - ./packages/shared:/app/packages/shared
-      - /app/node_modules
-      - /app/apps/worker/node_modules
+    networks:
+      - assistai-internal
     env_file:
       - .env
     environment:
@@ -101,7 +88,6 @@ services:
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - PORT_WORKER=3001
     depends_on:
       postgres:
         condition: service_healthy

@@ -35,6 +35,8 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build shared packages
+        run: make packages
       - run: pnpm typecheck
 
   test:
@@ -48,4 +50,6 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build shared packages
+        run: make packages
       - run: pnpm test

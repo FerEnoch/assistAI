@@ -3,24 +3,36 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 WORKDIR /app
 
 # Install dependencies
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/worker/package.json apps/worker/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN pnpm install --frozen-lockfile
+COPY packages/entities/package.json packages/entities/package.json
+RUN pnpm install
 
 # Copy source
 COPY packages/shared packages/shared
+COPY packages/entities packages/entities
 COPY apps/web apps/web
 
 # --- Dev target ---
 FROM base AS dev
+WORKDIR /app
+# Build everything including shared packages
+RUN pnpm --filter @assistai/shared build && \
+    pnpm --filter @assistai/entities build && \
+    pnpm --filter @assistai/web build
 WORKDIR /app/apps/web
 CMD ["pnpm", "dev", "--host", "0.0.0.0"]
 
 # --- Build target ---
 FROM base AS build
-WORKDIR /app/apps/web
-RUN pnpm build
+WORKDIR /app
+# Build shared packages first (required for web to build)
+RUN pnpm --filter @assistai/shared build && pnpm --filter @assistai/entities build
+# Build the Web app
+RUN pnpm --filter @assistai/web build
 
 # --- Production target ---
 FROM nginx:1.27-alpine AS production

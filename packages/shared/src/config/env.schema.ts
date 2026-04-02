@@ -37,6 +37,9 @@ export const apiEnvSchema = baseEnvSchema.extend({
   OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required for embeddings'),
   RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
 
+  // Frontend origin (for CORS + CSP in development)
+  WEB_URL: z.string().url({ message: 'WEB_URL must be a valid URL (e.g. http://localhost:5173)' }).default('http://localhost:5173'),
+
   // Observability (optional)
   SENTRY_DSN: z.string().url().optional(),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),

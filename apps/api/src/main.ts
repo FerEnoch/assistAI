@@ -39,7 +39,7 @@ async function bootstrap() {
           scriptSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"], // For inline styles (Tailwind/Vite HMR)
           imgSrc: ["'self'", 'data:', 'https:'],
-          connectSrc: ["'self'", process.env.VITE_API_URL || 'http://localhost:5173'],
+          connectSrc: ["'self'", env.WEB_URL],
           fontSrc: ["'self'"],
           objectSrc: ["'none'"],
           upgradeInsecureRequests: isProduction ? [] : ['upgrade-insecure-requests'],
@@ -136,7 +136,7 @@ async function bootstrap() {
   // ──────────────────────────────────────────
   const corsOrigin = isProduction
     ? false // No CORS en producción (mismo origen)
-    : process.env.VITE_API_URL || 'http://localhost:5173';
+    : env.WEB_URL;
 
   app.enableCors({
     origin: corsOrigin,

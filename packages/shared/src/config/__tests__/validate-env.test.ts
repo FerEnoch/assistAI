@@ -18,6 +18,7 @@ const validApiEnv = {
   OPENROUTER_API_KEY: 'openrouter-key',
   OPENAI_API_KEY: 'openai-key',
   RESEND_API_KEY: 'resend-key',
+  WEB_URL: 'http://localhost:5173',
 };
 
 const validWorkerEnv = {

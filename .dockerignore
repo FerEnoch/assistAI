@@ -1,0 +1,31 @@
+# Dependencies (installed inside container)
+node_modules
+**/node_modules
+
+# Build artifacts (built inside container)
+dist
+**/dist
+
+# Dev / editor files
+.git
+.gitignore
+.vscode
+.idea
+*.md
+!pnpm-workspace.yaml
+
+# Environment (passed via docker-compose)
+.env
+.env.*
+
+# Docker files (prevent recursive context)
+**/Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# CI / tooling
+.github
+.husky
+coverage
+**/coverage
+*.log

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import envConfig from '../config';
 
@@ -9,6 +10,7 @@ import envConfig from '../config';
  * Dev mode: shows a direct login button when dev mode is enabled.
  */
 export function LoginPage() {
+  const navigate = useNavigate();
   const { sendMagicLink, devLogin, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -21,7 +23,7 @@ export function LoginPage() {
     if (devMode) {
       const success = await devLogin(email);
       if (success) {
-        // AuthContext will handle redirect via useAuth in App.tsx
+        navigate('/dashboard');
       }
     } else {
       const success = await sendMagicLink(email);
@@ -34,8 +36,11 @@ export function LoginPage() {
   const handleDevLogin = async () => {
     clearError();
     // Use a default dev email or the one in the input
-    const devEmail = email || 'dev@localhost';
-    await devLogin(devEmail);
+    const devEmail = email ?? '';
+    const success = await devLogin(devEmail);
+    if (success) {
+      navigate('/dashboard');
+    }
   };
 
   return (

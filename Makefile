@@ -71,8 +71,12 @@ stop: ## Kill all dev server processes
 build: packages ## Build all workspace projects
 	pnpm build
 
-clean: ## Remove all dist/ and build/ artifacts
-	pnpm clean
+clean: ## Remove all dist/, build/, and node_modules/ artifacts
+	pnpm -r run clean
+	rm -rf node_modules
+	rm -rf apps/*/node_modules
+	rm -rf packages/*/node_modules
+	@echo "Cleaned: dist/, build/, and node_modules/"
 
 test: ## Run all tests
 	pnpm test

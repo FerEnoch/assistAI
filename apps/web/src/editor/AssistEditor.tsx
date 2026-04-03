@@ -10,6 +10,8 @@ import { EvidencePanel } from './EvidencePanel';
 import envConfig from '../config';
 import { getCsrfToken } from '../auth/csrf';
 
+const STORAGE_KEY = 'assistai_editor_content';
+
 /**
  * AssistAI Editor — Tiptap-based writing editor with inline completions (A-060 through A-065, A-081).
  *
@@ -22,6 +24,7 @@ import { getCsrfToken } from '../auth/csrf';
  * - Evidence panel sidebar (A-081, A-082)
  * - Source inspection analytics (A-084)
  * - Spanish (es-ES) copy for all states
+ * - Session storage persistence
  */
 export function AssistEditor() {
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -93,7 +96,37 @@ export function AssistEditor() {
       },
     },
     autofocus: 'end',
+    // Load initial content from session storage
+    content: (() => {
+      try {
+        const saved = sessionStorage.getItem(STORAGE_KEY);
+        return saved ?? '';
+      } catch {
+        return '';
+      }
+    })(),
   });
+
+  // Persist content to session storage on changes
+  useEffect(() => {
+    if (!editor) return;
+
+    const saveContent = () => {
+      try {
+        const html = editor.getHTML();
+        // Always save, even if empty (allows deletion to persist)
+        sessionStorage.setItem(STORAGE_KEY, html);
+      } catch (err) {
+        console.error('[Editor] Failed to save content:', err);
+      }
+    };
+
+    editor.on('update', saveContent);
+
+    return () => {
+      editor.off('update', saveContent);
+    };
+  }, [editor]);
 
   // Set up completion hook with evidence callback (A-064, A-070, A-080)
   const { status, error, onTextChange } = useCompletion({
@@ -249,35 +282,37 @@ export function ZeroEvidenceNotice() {
 // Ghost text CSS injection (A-062)
 // ──────────────────────────────────────────
 const ghostTextStyles = `
-.assist-editor-content {
+.ProseMirror {
   outline: none;
-  min-height: 400px;
+  flex: 1;
   padding: 1.5rem;
   font-family: 'Georgia', 'Times New Roman', serif;
   font-size: 1rem;
   line-height: 1.75;
   color: #1a1a2e;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.assist-editor-content p {
+.ProseMirror p {
   margin: 0 0 0.75rem;
 }
 
-.assist-editor-content h1 {
+.ProseMirror h1 {
   font-size: 1.75rem;
   font-weight: 700;
   margin: 1.5rem 0 0.75rem;
   color: #0f172a;
 }
 
-.assist-editor-content h2 {
+.ProseMirror h2 {
   font-size: 1.375rem;
   font-weight: 600;
   margin: 1.25rem 0 0.625rem;
   color: #1e293b;
 }
 
-.assist-editor-content h3 {
+.ProseMirror h3 {
   font-size: 1.125rem;
   font-weight: 600;
   margin: 1rem 0 0.5rem;
@@ -285,7 +320,7 @@ const ghostTextStyles = `
 }
 
 /* Placeholder text */
-.assist-editor-content p.is-editor-empty:first-child::before {
+.ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: #9ca3af;
@@ -294,7 +329,7 @@ const ghostTextStyles = `
   font-style: italic;
 }
 
-/* Ghost text decoration (A-062) */
+/* Ghost text decoration */
 .ghost-text {
   opacity: 0.4;
   pointer-events: none;
@@ -314,12 +349,10 @@ const ghostTextStyles = `
 // ──────────────────────────────────────────
 const styles: Record<string, React.CSSProperties> = {
   outerContainer: {
-    backgroundColor: 'red',
-
-
-    
     display: 'flex',
-    height: '100%',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
   },
   container: {
     display: 'flex',
@@ -331,7 +364,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '400px',
+    height: '100%',
   },
   loadingText: {
     fontSize: '0.875rem',
@@ -340,10 +373,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   editorWrapper: {
     flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
     backgroundColor: '#fff',
     borderRadius: '8px',
     border: '1px solid #e5e7eb',
-    overflow: 'auto',
+    overflow: 'hidden',
   },
   statusBar: {
     display: 'flex',

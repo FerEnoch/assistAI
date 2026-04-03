@@ -43,7 +43,7 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    minHeight: '100vh',
+    height: '100vh',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     backgroundColor: '#f8f9fa',
   },
@@ -54,6 +54,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.75rem 2rem',
     backgroundColor: '#fff',
     borderBottom: '1px solid #e5e7eb',
+    flexShrink: 0,
   },
   headerLeft: {
     display: 'flex',
@@ -91,16 +92,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   main: {
     flex: 1,
-    maxWidth: '800px',
-    width: '100%',
-    margin: '1.5rem auto',
-    padding: '0 1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+    padding: '1rem',
   },
   footer: {
     padding: '0.75rem 2rem',
     backgroundColor: '#fff',
     borderTop: '1px solid #e5e7eb',
     textAlign: 'center' as const,
+    flexShrink: 0,
   },
   footerHint: {
     fontSize: '0.75rem',

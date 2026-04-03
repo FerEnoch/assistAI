@@ -4,11 +4,11 @@ import envConfig from '../config';
 
 /**
  * Dashboard page — main authenticated view.
- * Shows workspace info, Drive connection button, indexing status, and logout.
+ * Shows workspace info, Drive connection button, indexing status.
  * All copy in Spanish per A-024.
  */
 export function DashboardPage() {
-  const { user, workspace, logout } = useAuth();
+  const { workspace } = useAuth();
 
   const handleConnectDrive = () => {
     // Redirect to backend which redirects to Google OAuth
@@ -17,16 +17,6 @@ export function DashboardPage() {
 
   return (
     <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.logo}>AssistAI</h1>
-        <div style={styles.headerRight}>
-          <span style={styles.email}>{user?.email}</span>
-          <button style={styles.logoutButton} onClick={logout}>
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
-
       <main style={styles.main}>
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Espacio de trabajo</h2>
@@ -68,41 +58,7 @@ export function DashboardPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    minHeight: '100vh',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '1rem 2rem',
-    backgroundColor: '#fff',
-    borderBottom: '1px solid #e5e7eb',
-  },
-  logo: {
-    fontSize: '1.25rem',
-    fontWeight: 700,
-    color: '#1a1a2e',
-    margin: 0,
-  },
-  headerRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-  },
-  email: {
-    fontSize: '0.875rem',
-    color: '#6b7280',
-  },
-  logoutButton: {
-    padding: '0.375rem 0.75rem',
-    fontSize: '0.8rem',
-    color: '#dc2626',
-    backgroundColor: 'transparent',
-    border: '1px solid #dc2626',
-    borderRadius: '6px',
-    cursor: 'pointer',
+    minHeight: '100%',
   },
   main: {
     maxWidth: '640px',
@@ -111,15 +67,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   section: {
     marginBottom: '2rem',
-    backgroundColor: '#fff',
-    borderRadius: '10px',
+    backgroundColor: 'var(--bg-elevated)',
+    borderRadius: 'var(--radius-lg)',
     padding: '1.5rem',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+    boxShadow: 'var(--shadow-sm)',
+    border: '1px solid var(--border-subtle)',
   },
   sectionTitle: {
     fontSize: '1.125rem',
     fontWeight: 600,
-    color: '#1a1a2e',
+    color: 'var(--text-primary)',
     margin: '0 0 1rem',
   },
   infoCard: {
@@ -130,17 +87,17 @@ const styles: Record<string, React.CSSProperties> = {
   infoLabel: {
     fontSize: '0.8rem',
     fontWeight: 600,
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
     margin: 0,
   },
   infoValue: {
     fontSize: '0.9rem',
-    color: '#111827',
+    color: 'var(--text-primary)',
     margin: 0,
   },
   description: {
     fontSize: '0.875rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
     lineHeight: 1.6,
     margin: '0 0 1rem',
   },
@@ -149,9 +106,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     fontWeight: 600,
     color: '#fff',
-    backgroundColor: '#2563eb',
+    backgroundColor: 'var(--accent-default)',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
   },
   editorLink: {
@@ -160,9 +117,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '0.9rem',
     fontWeight: 600,
     color: '#fff',
-    backgroundColor: '#7c3aed',
+    backgroundColor: 'var(--accent-default)',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: 'var(--radius-md)',
     textDecoration: 'none',
     cursor: 'pointer',
   },

@@ -204,13 +204,13 @@ function StatusBar({ status, error }: { status: CompletionStatus; error: string 
       case 'idle':
         return { text: '', color: 'transparent' };
       case 'waiting':
-        return { text: 'Buscando sugerencias...', color: '#f59e0b' };
+        return { text: 'Buscando sugerencias...', color: 'var(--warning)' };
       case 'streaming':
-        return { text: 'Generando sugerencia (Tab para aceptar, Esc para descartar)', color: '#10b981' };
+        return { text: 'Generando sugerencia (Tab para aceptar, Esc para descartar)', color: 'var(--success)' };
       case 'error':
         return {
           text: error ?? 'Error al generar la sugerencia. Intentá de nuevo.',
-          color: '#ef4444',
+          color: 'var(--error)',
         };
     }
   };
@@ -289,7 +289,7 @@ const ghostTextStyles = `
   font-family: 'Georgia', 'Times New Roman', serif;
   font-size: 1rem;
   line-height: 1.75;
-  color: #1a1a2e;
+  color: var(--editor-text, #1a1a2e);
   min-height: 0;
   overflow-y: auto;
 }
@@ -302,28 +302,28 @@ const ghostTextStyles = `
   font-size: 1.75rem;
   font-weight: 700;
   margin: 1.5rem 0 0.75rem;
-  color: #0f172a;
+  color: var(--editor-heading, #0f172a);
 }
 
 .ProseMirror h2 {
   font-size: 1.375rem;
   font-weight: 600;
   margin: 1.25rem 0 0.625rem;
-  color: #1e293b;
+  color: var(--editor-heading, #1e293b);
 }
 
 .ProseMirror h3 {
   font-size: 1.125rem;
   font-weight: 600;
   margin: 1rem 0 0.5rem;
-  color: #334155;
+  color: var(--editor-heading, #334155);
 }
 
 /* Placeholder text */
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #9ca3af;
+  color: var(--editor-placeholder, #9ca3af);
   pointer-events: none;
   height: 0;
   font-style: italic;
@@ -341,6 +341,13 @@ const ghostTextStyles = `
 /* ProseMirror focus ring */
 .ProseMirror-focused {
   outline: none;
+}
+
+/* Dark mode variables */
+.dark {
+  --editor-text: #e5e5e5;
+  --editor-heading: #f0f0f0;
+  --editor-placeholder: #6b7280;
 }
 `;
 
@@ -368,16 +375,16 @@ const styles: Record<string, React.CSSProperties> = {
   },
   loadingText: {
     fontSize: '0.875rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
     fontStyle: 'italic',
   },
   editorWrapper: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb',
+    backgroundColor: 'var(--bg-elevated)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)',
     overflow: 'hidden',
   },
   statusBar: {
@@ -386,9 +393,9 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '0.5rem',
     padding: '0.5rem 0.75rem',
     fontSize: '0.8rem',
-    color: '#6b7280',
-    backgroundColor: '#f9fafb',
-    borderRadius: '6px',
+    color: 'var(--text-secondary)',
+    backgroundColor: 'var(--bg-secondary)',
+    borderRadius: 'var(--radius-md)',
     borderLeft: '3px solid transparent',
     marginBottom: '0.5rem',
     transition: 'all 0.2s ease',
@@ -401,17 +408,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   statusText: {
     fontSize: '0.8rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
   },
   emptyState: {
     textAlign: 'center' as const,
     padding: '2rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
   },
   emptyTitle: {
     fontSize: '1rem',
     fontWeight: 600,
-    color: '#374151',
+    color: 'var(--text-primary)',
     margin: '0 0 0.5rem',
   },
   emptyDescription: {
@@ -421,30 +428,30 @@ const styles: Record<string, React.CSSProperties> = {
   },
   emptyHint: {
     fontSize: '0.8rem',
-    color: '#9ca3af',
+    color: 'var(--text-tertiary)',
     fontStyle: 'italic',
     margin: 0,
   },
   errorState: {
     textAlign: 'center' as const,
     padding: '2rem',
-    backgroundColor: '#fef2f2',
-    borderRadius: '8px',
-    border: '1px solid #fecaca',
+    backgroundColor: 'var(--bg-secondary)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-default)',
   },
   errorText: {
     fontSize: '0.875rem',
-    color: '#dc2626',
+    color: 'var(--error)',
     margin: '0 0 1rem',
   },
   retryButton: {
     padding: '0.5rem 1rem',
     fontSize: '0.8rem',
     fontWeight: 500,
-    color: '#dc2626',
-    backgroundColor: '#fff',
-    border: '1px solid #fecaca',
-    borderRadius: '6px',
+    color: 'var(--error)',
+    backgroundColor: 'var(--bg-elevated)',
+    border: '1px solid var(--border-default)',
+    borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
   },
   zeroEvidence: {
@@ -453,9 +460,9 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '0.5rem',
     padding: '0.625rem 0.75rem',
     fontSize: '0.8rem',
-    color: '#9ca3af',
-    backgroundColor: '#f9fafb',
-    borderRadius: '6px',
+    color: 'var(--text-tertiary)',
+    backgroundColor: 'var(--bg-secondary)',
+    borderRadius: 'var(--radius-md)',
     marginBottom: '0.5rem',
   },
   zeroEvidenceIcon: {

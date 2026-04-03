@@ -1,4 +1,5 @@
 import { useAuth } from '../auth/AuthContext';
+import { useTheme } from '../theme/ThemeContext';
 import { AssistEditor } from '../editor/AssistEditor';
 
 /**
@@ -7,6 +8,7 @@ import { AssistEditor } from '../editor/AssistEditor';
  */
 export function EditorPage() {
   const { user, logout } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
 
   return (
     <div style={styles.container}>
@@ -19,6 +21,13 @@ export function EditorPage() {
         </div>
         <div style={styles.headerRight}>
           <span style={styles.email}>{user?.email}</span>
+          <button 
+            style={styles.themeToggle} 
+            onClick={toggleTheme}
+            title={isDark ? 'Modo claro' : 'Modo oscuro'}
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
           <button style={styles.logoutButton} onClick={logout}>
             Cerrar sesion
           </button>
@@ -44,16 +53,15 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     height: '100vh',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'var(--bg-primary)',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0.75rem 2rem',
-    backgroundColor: '#fff',
-    borderBottom: '1px solid #e5e7eb',
+    backgroundColor: 'var(--bg-elevated)',
+    borderBottom: '1px solid var(--border-subtle)',
     flexShrink: 0,
   },
   headerLeft: {
@@ -63,13 +71,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   backLink: {
     fontSize: '0.8rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
     textDecoration: 'none',
   },
   logo: {
     fontSize: '1.125rem',
     fontWeight: 700,
-    color: '#1a1a2e',
+    color: 'var(--text-primary)',
     margin: 0,
   },
   headerRight: {
@@ -79,15 +87,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   email: {
     fontSize: '0.8rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
+  },
+  themeToggle: {
+    padding: '0.375rem 0.75rem',
+    fontSize: '1rem',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: 'var(--radius-md)',
+    cursor: 'pointer',
   },
   logoutButton: {
     padding: '0.375rem 0.75rem',
     fontSize: '0.75rem',
-    color: '#dc2626',
+    color: 'var(--error)',
     backgroundColor: 'transparent',
-    border: '1px solid #dc2626',
-    borderRadius: '6px',
+    border: '1px solid var(--error)',
+    borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
   },
   main: {
@@ -99,13 +115,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   footer: {
     padding: '0.75rem 2rem',
-    backgroundColor: '#fff',
-    borderTop: '1px solid #e5e7eb',
+    backgroundColor: 'var(--bg-elevated)',
+    borderTop: '1px solid var(--border-subtle)',
     textAlign: 'center' as const,
     flexShrink: 0,
   },
   footerHint: {
     fontSize: '0.75rem',
-    color: '#9ca3af',
+    color: 'var(--text-tertiary)',
   },
 };

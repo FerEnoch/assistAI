@@ -5,13 +5,15 @@ import { AuthService } from '../auth.service';
 
 /**
  * Updated tests for Sprint 2 — includes session creation on verify,
- * session destruction, and CSRF token generation.
+ * session destruction, CSRF token generation, and /me endpoint.
  */
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: {
     sendMagicLink: ReturnType<typeof vi.fn>;
     verifyMagicLink: ReturnType<typeof vi.fn>;
+    getUserById: ReturnType<typeof vi.fn>;
+    getWorkspaceById: ReturnType<typeof vi.fn>;
   };
 
   // Mock session
@@ -29,6 +31,8 @@ describe('AuthController', () => {
     authService = {
       sendMagicLink: vi.fn().mockResolvedValue(undefined),
       verifyMagicLink: vi.fn(),
+      getUserById: vi.fn(),
+      getWorkspaceById: vi.fn(),
     };
 
     controller = new AuthController(authService as unknown as AuthService);
@@ -128,6 +132,78 @@ describe('AuthController', () => {
       const result = controller.getCsrfToken(req as never, res as never);
 
       expect(result.token).toBe('mock-csrf-token');
+    });
+  });
+
+  describe('GET /auth/me', () => {
+    it('should return user and workspace when session is valid', async () => {
+      authService.getUserById.mockResolvedValue({
+        id: 'u1',
+        email: 'test@example.com',
+        locale: 'es-ES',
+      } as never);
+      authService.getWorkspaceById.mockResolvedValue({
+        id: 'w1',
+        name: 'Mi espacio de trabajo',
+      } as never);
+
+      const req = {
+        session: {
+          userId: 'u1',
+          workspaceId: 'w1',
+        },
+      };
+
+      const result = await controller.getCurrentUser(req as never);
+
+      expect(result).not.toBeNull();
+      expect(result!.user.id).toBe('u1');
+      expect(result!.user.email).toBe('test@example.com');
+      expect(result!.workspace.id).toBe('w1');
+      expect(result!.workspace.name).toBe('Mi espacio de trabajo');
+    });
+
+    it('should return null when no session', async () => {
+      const req = { session: {} };
+
+      const result = await controller.getCurrentUser(req as never);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when user not found', async () => {
+      authService.getUserById.mockResolvedValue(null);
+
+      const req = {
+        session: {
+          userId: 'nonexistent',
+          workspaceId: 'w1',
+        },
+      };
+
+      const result = await controller.getCurrentUser(req as never);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when workspace not found', async () => {
+      authService.getUserById.mockResolvedValue({
+        id: 'u1',
+        email: 'test@example.com',
+        locale: 'es-ES',
+      } as never);
+      authService.getWorkspaceById.mockResolvedValue(null);
+
+      const req = {
+        session: {
+          userId: 'u1',
+          workspaceId: 'nonexistent',
+        },
+      };
+
+      const result = await controller.getCurrentUser(req as never);
+
+      expect(result).toBeNull();
     });
   });
 });

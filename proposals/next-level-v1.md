@@ -176,7 +176,7 @@ The 5 remaining product tasks (A-001 through A-005) should be completed **before
 | Task | Description | Rationale |
 |------|-------------|-----------|
 | P1-040 | Configure TypeORM connection pool | Set `extra: { max: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }` in `apps/api/src/database/database.module.ts`. Current defaults are inadequate for production. |
-| P1-041 | Add Redis connection pool configuration | Configure `ioredis` with `maxRetriesPerRequest: 3`, `connectTimeout: 5000`, `commandTimeout: 5000` in `apps/api/src/main.ts`. |
+| P1-041 | Add Redis connection pool configuration | Configure `redis` client with connection options in `apps/api/src/main.ts`. |
 | P1-042 | Add retrieval result caching | Cache recent retrieval results per editor session in Redis with 60s TTL. The plan (§8) explicitly calls for this. Reduces pgvector load during active editing. |
 | P1-043 | Add completion response compression | Enable gzip compression for SSE responses. SSE text compresses well (60-70% reduction). |
 

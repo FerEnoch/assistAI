@@ -133,7 +133,7 @@ These are known issues from the MVP that MUST be addressed in Phase 1 or they wi
 | Task | Description | Priority | Workstream | Effort | Status | Files |
 |------|-------------|----------|------------|--------|--------|-------|
 | P1-040 | Configure TypeORM connection pool. Set `extra: { max: 20, idleTimeoutMillis: 30000, connectionTimeoutMillis: 5000 }`. Current defaults are inadequate for production load. | P0 | Backend | S | Not started | `apps/api/src/database/database.module.ts` |
-| P1-041 | Add Redis connection pool configuration. Configure `ioredis` with `maxRetriesPerRequest: 3`, `connectTimeout: 5000`, `commandTimeout: 5000`. | P0 | Backend | S | Not started | `apps/api/src/main.ts` |
+| P1-041 | Add Redis connection pool configuration. Configure `redis` client with connection options. | P0 | Backend | S | Not started | `apps/api/src/main.ts` |
 | P1-042 | Add retrieval result caching. Cache retrieval results per editor session in Redis with 60s TTL. Reduces pgvector load during active editing. | P1 | Backend | M | Not started | `apps/api/src/retrieval/retrieval.service.ts` |
 | P1-043 | Enable gzip compression for API responses (including SSE). SSE text compresses 60-70%. Use `compression` middleware. | P1 | Backend | S | Not started | `apps/api/src/main.ts`, `apps/api/package.json` |
 

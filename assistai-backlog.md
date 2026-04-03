@@ -45,7 +45,7 @@ All items below are **locked**. An agent implementing any task in this backlog m
 | Concern | Decision | Package(s) |
 | --- | --- | --- |
 | Magic-link auth | `@nestjs/jwt` signs a 15-min one-time-use JWT; Resend sends the email | `@nestjs/jwt`, `resend@^3` |
-| Session store | express-session + connect-redis v8 (ioredis native) | `express-session@^1.18`, `connect-redis@^8` |
+| Session store | express-session + connect-redis (redis client) | `express-session@^1.18`, `connect-redis@^9` |
 | CSRF | Double Submit Cookie + HMAC. `csurf` is deprecated and CVE-flagged — do not use it. Exempt pre-auth endpoints. | `csrf-csrf@^3` |
 | Rate limiting | Redis-backed throttler. Auth: 5 req / 15 min per IP. Completions: 60 req / min + 1,000 / day. Ingestion: 10 req / hour. | `@nestjs/throttler@^6`, `nestjs-throttler-storage-redis` |
 | Completion streaming | `@Sse()` + `rxjs Observable<MessageEvent>`. Not `StreamableFile` (binary downloads only). Not WebSockets. | Built-in `@nestjs/common` + `rxjs` |

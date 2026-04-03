@@ -10,7 +10,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import { RedisStore } from 'connect-redis';
-import Redis from 'ioredis';
+import { createClient } from 'redis';
 import { doubleCsrf } from 'csrf-csrf';
 import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
@@ -52,11 +52,11 @@ async function bootstrap() {
   // ──────────────────────────────────────────
   // Redis client for sessions
   // ──────────────────────────────────────────
-  const redisClient = new Redis(env.REDIS_URL, {
-    keyPrefix: 'sess:',
-    enableReadyCheck: true,
-    maxRetriesPerRequest: 3,
+  const redisClient = createClient({
+    url: env.REDIS_URL,
   });
+  redisClient.on('error', (err) => console.error('[Redis] Client error:', err));
+  await redisClient.connect();
 
   // ──────────────────────────────────────────
   // Session middleware (express-session + connect-redis)
@@ -68,7 +68,7 @@ async function bootstrap() {
     name: isProduction ? '__Host-assistai_sid' : 'assistai_sid',
     store: new RedisStore({
       client: redisClient,
-      prefix: '', // keyPrefix already set on Redis client
+      prefix: 'sess:',
     }),
     secret: env.SESSION_SECRET,
     resave: false,

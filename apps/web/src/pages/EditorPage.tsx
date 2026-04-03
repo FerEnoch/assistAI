@@ -1,6 +1,5 @@
 import { useAuth } from '../auth/AuthContext';
 import { AssistEditor } from '../editor/AssistEditor';
-import envConfig from '../config';
 
 /**
  * Editor page — main writing interface with inline completions.

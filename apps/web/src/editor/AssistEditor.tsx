@@ -314,6 +314,10 @@ const ghostTextStyles = `
 // ──────────────────────────────────────────
 const styles: Record<string, React.CSSProperties> = {
   outerContainer: {
+    backgroundColor: 'red',
+
+
+    
     display: 'flex',
     height: '100%',
   },

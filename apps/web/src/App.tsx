@@ -16,6 +16,7 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="*" element={<Navigate to="/auth/login" replace />} />
           <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/verify" element={<VerifyPage />} />
           <Route
@@ -34,7 +35,6 @@ export function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/auth/login" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

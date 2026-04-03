@@ -19,6 +19,7 @@ interface AuthContextValue {
   isLoading: boolean;
   error: string | null;
   sendMagicLink: (email: string) => Promise<boolean>;
+  devLogin: (email: string) => Promise<boolean>;
   verifyToken: (token: string) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -51,6 +52,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.message ?? 'Error al enviar el enlace');
       }
 
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error de conexión');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const devLogin = useCallback(async (email: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`${envConfig.apiUrl}/auth/dev-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? 'Error en login dev');
+      }
+
+      const data = await res.json();
+      setUser(data.user);
+      setWorkspace(data.workspace);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
@@ -108,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, workspace, isLoading, error, sendMagicLink, verifyToken, logout, clearError }}
+      value={{ user, workspace, isLoading, error, sendMagicLink, devLogin, verifyToken, logout, clearError }}
     >
       {children}
     </AuthContext.Provider>

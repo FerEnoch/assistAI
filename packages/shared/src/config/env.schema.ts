@@ -40,6 +40,9 @@ export const apiEnvSchema = baseEnvSchema.extend({
   // Frontend origin (for CORS + CSP in development)
   WEB_URL: z.string().url({ message: 'WEB_URL must be a valid URL (e.g. http://localhost:5173)' }).default('http://localhost:5173'),
 
+  // Dev mode (optional)
+  DEV_AUTH_BYPASS: z.enum(['true', 'false']).default('false'),
+
   // Observability (optional)
   SENTRY_DSN: z.string().url().optional(),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),

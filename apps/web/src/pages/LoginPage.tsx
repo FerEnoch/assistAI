@@ -1,23 +1,41 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import envConfig from '../config';
 
 /**
  * Login page — magic-link form.
  * All copy in Spanish per A-024.
+ * 
+ * Dev mode: shows a direct login button when dev mode is enabled.
  */
 export function LoginPage() {
-  const { sendMagicLink, isLoading, error, clearError } = useAuth();
+  const { sendMagicLink, devLogin, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
-
+  const devMode = envConfig.devMode;
+  
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     clearError();
 
-    const success = await sendMagicLink(email);
-    if (success) {
-      setSent(true);
+    if (devMode) {
+      const success = await devLogin(email);
+      if (success) {
+        // AuthContext will handle redirect via useAuth in App.tsx
+      }
+    } else {
+      const success = await sendMagicLink(email);
+      if (success) {
+        setSent(true);
+      }
     }
+  };
+
+  const handleDevLogin = async () => {
+    clearError();
+    // Use a default dev email or the one in the input
+    const devEmail = email || 'dev@localhost';
+    await devLogin(devEmail);
   };
 
   return (
@@ -27,6 +45,21 @@ export function LoginPage() {
         <p style={styles.subtitle}>
           Asistente de escritura con IA para profesionales del derecho
         </p>
+
+        {devMode && (
+          <div style={styles.devBanner}>
+            <span style={styles.devBadge}>DEV</span>
+            <span>Modo desarrollo activado</span>
+            <button
+              type="button"
+              style={styles.devButton}
+              onClick={handleDevLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Ingresando...' : 'Iniciar sesión directo'}
+            </button>
+          </div>
+        )}
 
         {sent ? (
           <div style={styles.successBox}>
@@ -182,5 +215,35 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '2rem',
     fontSize: '0.75rem',
     color: '#9ca3af',
+  },
+  devBanner: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '1rem',
+    marginBottom: '1.5rem',
+    backgroundColor: '#fef3c7',
+    borderRadius: '8px',
+    border: '1px solid #f59e0b',
+  },
+  devBadge: {
+    fontSize: '0.7rem',
+    fontWeight: 700,
+    color: '#fff',
+    backgroundColor: '#f59e0b',
+    padding: '0.15rem 0.5rem',
+    borderRadius: '4px',
+    textTransform: 'uppercase' as const,
+  },
+  devButton: {
+    padding: '0.6rem 1rem',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    color: '#fff',
+    backgroundColor: '#f59e0b',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
   },
 };

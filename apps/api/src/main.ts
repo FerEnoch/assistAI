@@ -123,7 +123,7 @@ async function bootstrap() {
     }
 
     // Exempt pre-auth endpoints (magic-link doesn't need CSRF — no session yet)
-    const exemptPaths = ['/auth/magic-link', '/health'];
+    const exemptPaths = ['/auth/magic-link', '/health', '/auth/dev-login'];
     if (exemptPaths.some((p) => req.path === p || req.path.startsWith(p))) {
       return next();
     }

@@ -25,6 +25,56 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
+   * POST /auth/dev-login
+   * Dev mode: create user + session without email verification.
+   * Only works when DEV_AUTH_BYPASS=true and NODE_ENV=development.
+   */
+  @Post('dev-login')
+  @HttpCode(HttpStatus.OK)
+  async devLogin(
+    @Body() body: unknown,
+    @Req() req: Request,
+    @Res({ passthrough: true }) _res: Response,
+  ): Promise<{ user: { id: string; email: string; locale: string }; workspace: { id: string; name: string } }> {
+    const parsed = magicLinkRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(
+        parsed.error.issues.map((i) => i.message).join('; '),
+      );
+    }
+
+    const { user, workspace } = await this.authService.devLogin(parsed.data.email);
+
+    // Regenerate session to prevent fixation attacks
+    await new Promise<void>((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+
+    // Populate session data
+    req.session.userId = user.id;
+    req.session.email = user.email;
+    req.session.workspaceId = workspace.id;
+    req.session.authenticatedAt = Date.now();
+
+    // Save session explicitly
+    await new Promise<void>((resolve, reject) => {
+      req.session.save((err) => (err ? reject(err) : resolve()));
+    });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        locale: user.locale,
+      },
+      workspace: {
+        id: workspace.id,
+        name: workspace.name,
+      },
+    };
+  }
+
+  /**
    * POST /auth/magic-link
    * Send a magic link email for passwordless login.
    * Always returns 202 to prevent email enumeration.
@@ -131,6 +181,7 @@ export class AuthController {
   ): { token: string } {
     const generateToken = (req.app.get('csrfGenerateToken') as (req: Request, res: Response) => string);
     const token = generateToken(req, res);
+    // const token = req.app.get('csrfGenerateToken');
     return { token };
   }
 }

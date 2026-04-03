@@ -49,7 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? 'Error al enviar el enlace');
+        // Support both old format { message: ... } and new format { error: { message: ... } }
+        const message = data.error?.message ?? data.message ?? 'Error en la solicitud';
+        throw new Error(message);
       }
 
       return true;
@@ -75,7 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? 'Error en login dev');
+        // Support both old format { message: ... } and new format { error: { message: ... } }
+        const message = data.error?.message ?? data.message ?? 'Error en login dev';
+        throw new Error(message);
       }
 
       const data = await res.json();
@@ -101,7 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? 'Enlace inválido o expirado');
+        // Support both old format { message: ... } and new format { error: { message: ... } }
+        const message = data.error?.message ?? data.message ?? 'Enlace inválido o expirado';
+        throw new Error(message);
       }
 
       const data = await res.json();

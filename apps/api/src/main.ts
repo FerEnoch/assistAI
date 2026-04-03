@@ -15,6 +15,8 @@ import { doubleCsrf } from 'csrf-csrf';
 import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { validateEnv, apiEnvSchema } from '@assistai/shared';
+import { GlobalExceptionFilter } from './filters/global-exception.filter';
+import { HttpAdapterHost } from '@nestjs/core';
 
 async function bootstrap() {
   const env = validateEnv(apiEnvSchema, process.env as Record<string, string | undefined>, {
@@ -144,6 +146,12 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
   });
+
+  // ──────────────────────────────────────────
+  // Global exception filter (user-friendly errors)
+  // ──────────────────────────────────────────
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new GlobalExceptionFilter(httpAdapterHost));
 
   await app.listen(env.PORT_API);
 

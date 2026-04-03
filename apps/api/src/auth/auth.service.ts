@@ -173,4 +173,18 @@ export class AuthService {
 
     return { user, workspace };
   }
+
+  /**
+   * Get user by ID.
+   */
+  async getUserById(id: string): Promise<User | null> {
+    return this.userRepo.findOne({ where: { id } });
+  }
+
+  /**
+   * Get workspace by ID.
+   */
+  async getWorkspaceById(id: string): Promise<Workspace | null> {
+    return this.workspaceRepo.findOne({ where: { id } });
+  }
 }

@@ -16,6 +16,8 @@
   },
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
+    "dev:api": "pnpm --filter @assistai/api dev",
+    "dev:web": "pnpm --filter @assistai/web dev",
     "build": "pnpm -r run build",
     "lint": "eslint 'apps/*/src/**/*.ts' 'packages/*/src/**/*.ts'",
     "typecheck": "pnpm -r run typecheck",

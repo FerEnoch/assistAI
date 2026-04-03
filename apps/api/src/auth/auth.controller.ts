@@ -154,6 +154,45 @@ export class AuthController {
   }
 
   /**
+   * GET /auth/me
+   * Returns the current user and workspace if a valid session exists.
+   * Used by the frontend to restore session on app load.
+   */
+  @Get('me')
+  async getCurrentUser(
+    @Req() req: Request,
+  ): Promise<{ user: { id: string; email: string; locale: string }; workspace: { id: string; name: string } } | null> {
+    if (!req.session?.userId) {
+      return null;
+    }
+
+    const userId = req.session.userId as string;
+    const wsId = req.session.workspaceId as string;
+
+    const user = await this.authService.getUserById(userId);
+    if (!user) {
+      return null;
+    }
+
+    const workspace = await this.authService.getWorkspaceById(wsId);
+    if (!workspace) {
+      return null;
+    }
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        locale: user.locale,
+      },
+      workspace: {
+        id: workspace.id,
+        name: workspace.name,
+      },
+    };
+  }
+
+  /**
    * DELETE /auth/session
    * Destroy the current session and clear the cookie.
    */

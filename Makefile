@@ -52,11 +52,24 @@ dev: ## Full dev start: infra → packages → apps (hot reload)
 	@echo "📦 Building shared packages..."
 	@$(MAKE) packages
 	@echo ""
-	@echo "🚀 Starting all dev servers..."
-	pnpm dev
+	@$(MAKE) dev-apps
 
-dev-apps: packages ## Start dev servers only (assumes infra is running)
-	pnpm dev
+dev-apps: packages ## Start dev servers (API first, then Web)
+	@echo "🚀 Starting API server..."
+	@pnpm --filter @assistai/api dev &
+	@echo "⏳ Waiting for API to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
+		if curl -sf http://localhost:$(API_PORT)/health >/dev/null 2>&1; then \
+			echo "  API: ✓ ready"; \
+			break; \
+		fi; \
+		sleep 1; \
+	done
+	@curl -sf http://localhost:$(API_PORT)/health >/dev/null || (echo "  API: ✗ FAILED to start" && exit 1)
+	@echo "🚀 Starting Worker server..."
+	@pnpm --filter @assistai/worker dev &
+	@echo "🚀 Starting Web server..."
+	@pnpm --filter @assistai/web dev
 
 stop: ## Kill all dev server processes
 	-pkill -f "node.*dist/main" 2>/dev/null

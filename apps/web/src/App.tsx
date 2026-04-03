@@ -6,7 +6,17 @@ import { EditorPage } from './pages/EditorPage';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  
+  // Wait for session check to complete before redirecting
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <p>Cargando...</p>
+      </div>
+    );
+  }
+  
   if (!user) return <Navigate to="/auth/login" replace />;
   return <>{children}</>;
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import envConfig from '../config';
 import { getCsrfToken, invalidateCsrfToken } from './csrf';
 
@@ -30,10 +30,35 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [workspace, setWorkspace] = useState<AuthWorkspace | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start true to check session on mount
   const [error, setError] = useState<string | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
+
+  // Check session on mount — restore user if valid session exists
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch(`${envConfig.apiUrl}/auth/me`, {
+          credentials: 'include',
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user && data.workspace) {
+            setUser(data.user);
+            setWorkspace(data.workspace);
+          }
+        }
+      } catch {
+        // No session — user stays logged out
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    checkSession();
+  }, []);
 
   const sendMagicLink = useCallback(async (email: string): Promise<boolean> => {
     setIsLoading(true);

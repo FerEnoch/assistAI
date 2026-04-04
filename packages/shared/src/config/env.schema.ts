@@ -17,28 +17,31 @@ export const apiEnvSchema = baseEnvSchema.extend({
   REDIS_URL: z.string().url({ message: 'REDIS_URL must be a valid Redis connection string' }),
 
   // Auth
-  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
-  CSRF_SECRET: z.string().min(32, 'CSRF_SECRET must be at least 32 characters'),
-  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  MAGIC_LINK_URL: z.string().url({ message: 'MAGIC_LINK_URL must be a valid URL (e.g. http://localhost:5173/auth/verify)' }),
+  SESSION_SECRET: z.string().min(32).default('dev-session-secret-at-least-32-chars-long'),
+  CSRF_SECRET: z.string().min(32).default('dev-csrf-secret-at-least-32-chars-long'),
+  JWT_SECRET: z.string().min(32).default('dev-jwt-secret-at-least-32-chars-long'),
+  MAGIC_LINK_URL: z.string().url().default('http://localhost:5173/auth/verify'),
 
   // Credential encryption
   CREDENTIAL_ENCRYPTION_KEY: z
     .string()
-    .regex(/^[0-9a-fA-F]{64}$/, 'CREDENTIAL_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)'),
+    .regex(/^[0-9a-fA-F]{64}$/)
+    .default('b90e69894137471b490f5972e0ee0fb14612fc3ca8062446eae0bff092eed21a'),
 
-  // Google OAuth
-  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
-  GOOGLE_REDIRECT_URI: z.string().url({ message: 'GOOGLE_REDIRECT_URI must be a valid URL' }),
+  // Google OAuth (optional for dev mode without Drive)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().url().optional(),
 
-  // External services
-  OPENROUTER_API_KEY: z.string().min(1, 'OPENROUTER_API_KEY is required'),
-  OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required for embeddings'),
-  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  // External services (optional - FreeTierProvider will handle missing keys gracefully)
+  OPENROUTER_API_KEY: z.string().optional(),
+  CEREBRAS_API_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
 
   // Frontend origin (for CORS + CSP in development)
-  WEB_URL: z.string().url({ message: 'WEB_URL must be a valid URL (e.g. http://localhost:5173)' }).default('http://localhost:5173'),
+  WEB_URL: z.string().url().default('http://localhost:5173'),
 
   // Dev mode (optional)
   DEV_AUTH_BYPASS: z.enum(['true', 'false']).default('false'),
@@ -59,14 +62,15 @@ export const workerEnvSchema = baseEnvSchema.extend({
   // Credential encryption (worker needs to decrypt tokens for Drive access)
   CREDENTIAL_ENCRYPTION_KEY: z
     .string()
-    .regex(/^[0-9a-fA-F]{64}$/, 'CREDENTIAL_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)'),
+    .regex(/^[0-9a-fA-F]{64}$/)
+    .default('b90e69894137471b490f5972e0ee0fb14612fc3ca8062446eae0bff092eed21a'),
 
   // Google OAuth (worker needs client ID/secret to refresh access tokens for Drive)
-  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, 'GOOGLE_CLIENT_SECRET is required'),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
 
   // External services needed by worker
-  OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required for embeddings'),
+  OPENAI_API_KEY: z.string().optional(),
 
   // Observability (optional)
   SENTRY_DSN: z.string().url().optional(),
@@ -77,7 +81,7 @@ export const workerEnvSchema = baseEnvSchema.extend({
  * Frontend environment variables (Vite-compatible: VITE_ prefix).
  */
 export const webEnvSchema = z.object({
-  VITE_API_URL: z.string().url({ message: 'VITE_API_URL must be a valid URL' }),
+  VITE_API_URL: z.string().url().default('http://localhost:3000'),
   VITE_APP_NAME: z.string().default('AssistAI'),
 });
 

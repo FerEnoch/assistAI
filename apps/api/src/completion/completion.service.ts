@@ -127,9 +127,12 @@ export class CompletionService {
     subject: Subject<SseMessageEvent>,
   ): Promise<void> {
     const startMs = Date.now();
+    let timedOut = false;
+    let savedCompletionId: string | null = null;
 
     // Timeout budget (A-077) — abort after totalTimeoutMs
     const timeoutHandle = setTimeout(() => {
+      timedOut = true;
       subject.next({
         type: 'error',
         data: JSON.stringify({
@@ -149,6 +152,7 @@ export class CompletionService {
 
     try {
       const saved = await this.completionRepo.save(completionReq);
+      savedCompletionId = saved.id;
 
       // Step 1: Provider routing (A-075)
       const { adapter, endpointId, providerType } =
@@ -225,6 +229,8 @@ export class CompletionService {
       // Step 6: Stream from provider (A-073, A-074)
       const providerStart = Date.now();
 
+      if (timedOut) return;
+
       const stream = adapter.streamCompletion({
         system: prompt.system,
         user: prompt.user,
@@ -234,6 +240,8 @@ export class CompletionService {
       });
 
       for await (const token of stream) {
+        if (timedOut) break;
+
         if (token.text) {
           subject.next({
             type: 'token',
@@ -247,6 +255,8 @@ export class CompletionService {
 
       const providerLatencyMs = Date.now() - providerStart;
       const totalLatencyMs = Date.now() - startMs;
+
+      if (timedOut) return;
 
       // Step 7: Log completion request (A-076)
       await this.completionRepo.update(saved.id, {
@@ -283,27 +293,102 @@ export class CompletionService {
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`[Completion] Pipeline error: ${message}`);
+      const mappedError = this.mapErrorToUserError(message);
+
+      this.logger.error(
+        `[Completion] Pipeline error: code=${mappedError.code} message=${message}`,
+        err instanceof Error ? err.stack : undefined,
+      );
 
       // Update status if we have a saved record
-      if (completionReq.id) {
-        const isTimeout = message.includes('timeout') || message.includes('TIMEOUT');
-        await this.completionRepo.update(completionReq.id, {
-          outcomeStatus: isTimeout ? 'timeout' : 'error',
+      if (savedCompletionId) {
+        await this.completionRepo.update(savedCompletionId, {
+          outcomeStatus: mappedError.code === 'TIMEOUT' ? 'timeout' : 'error',
           latencyMs: Date.now() - startMs,
         }).catch(() => {/* swallow — best effort */});
       }
 
-      subject.next({
-        type: 'error',
-        data: JSON.stringify({
-          error: 'Error al generar la sugerencia. Intentá de nuevo.',
-        }),
-      });
+      if (!timedOut) {
+        subject.next({
+          type: 'error',
+          data: JSON.stringify({
+            error: mappedError.message,
+            code: mappedError.code,
+          }),
+        });
+      }
     } finally {
       clearTimeout(timeoutHandle);
       subject.complete();
     }
+  }
+
+  /**
+   * Map backend error messages to user-friendly Spanish messages.
+   */
+  private mapErrorToUserError(error: string): { code: string; message: string } {
+    const lower = error.toLowerCase();
+
+    if (lower.includes('timeout') || lower.includes('tiempo')) {
+      return {
+        code: 'TIMEOUT',
+        message: 'La solicitud tardó demasiado. Intentá de nuevo.',
+      };
+    }
+
+    if (lower.includes('no_provider_configured') || lower.includes('no hay proveedores')) {
+      return {
+        code: 'NO_PROVIDER_AVAILABLE',
+        message: 'No hay proveedores de IA disponibles en este momento.',
+      };
+    }
+
+    if (lower.includes('quota_exhausted') || lower.includes('quota') || lower.includes('limit') || lower.includes('agotad')) {
+      return {
+        code: 'QUOTA_EXHAUSTED',
+        message: 'Se agotó la cuota gratuita de IA. Probá más tarde.',
+      };
+    }
+
+    if (lower.includes('rate_limit') || lower.includes('frecuencia') || lower.includes('429')) {
+      return {
+        code: 'RATE_LIMITED',
+        message: 'Hay muchas solicitudes. Esperá un momento e intentá de nuevo.',
+      };
+    }
+
+    if (lower.includes('providers_unavailable') || lower.includes('network') || lower.includes('connection') || lower.includes('econnrefused') || lower.includes('enotfound')) {
+      return {
+        code: 'PROVIDERS_UNAVAILABLE',
+        message: 'Los proveedores de IA no están disponibles temporalmente.',
+      };
+    }
+
+    if (lower.includes('all_providers_failed')) {
+      return {
+        code: 'ALL_PROVIDERS_FAILED',
+        message: 'Ningún proveedor de IA pudo completar la solicitud en este momento.',
+      };
+    }
+
+    if (lower.includes('authentication') || lower.includes('autentic') || lower.includes('api_key') || lower.includes('invalid') || lower.includes('401') || lower.includes('403')) {
+      return {
+        code: 'AUTH_ERROR',
+        message: 'Error de autenticación con el proveedor de IA.',
+      };
+    }
+
+    if (lower.includes('bad_request') || lower.includes('invalid_request') || lower.includes('model') || lower.includes('unsupported') || lower.includes('400')) {
+      return {
+        code: 'BAD_REQUEST',
+        message: 'La solicitud no pudo procesarse (modelo o parámetros inválidos).',
+      };
+    }
+
+    return {
+      code: 'COMPLETION_FAILED',
+      message: 'Error al generar la sugerencia. Intentá de nuevo.',
+    };
   }
 
   /**

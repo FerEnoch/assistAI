@@ -97,6 +97,33 @@ export const PROVIDER_CONFIG = {
 } as const;
 
 /**
+ * Free-tier provider configuration for round-robin.
+ * Each provider has its API key from environment and a default model.
+ */
+export const FREE_PROVIDERS = [
+  {
+    name: 'openrouter',
+    apiKeyEnv: 'OPENROUTER_API_KEY',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    model: 'openai/gpt-4o-mini',
+  },
+  {
+    name: 'cerebras',
+    apiKeyEnv: 'CEREBRAS_API_KEY',
+    baseUrl: 'https://api.cerebras.ai/v1',
+    model: 'llama-3.3-70b',
+  },
+  {
+    name: 'groq',
+    apiKeyEnv: 'GROQ_API_KEY',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    model: 'llama-3.1-70b-versatile',
+  },
+] as const;
+
+export type FreeProviderName = typeof FREE_PROVIDERS[number]['name'];
+
+/**
  * Rate limit configuration (A-095).
  *
  * Per spec: magic-link 5/15min per IP, completions 60/min + 1000/day per user.

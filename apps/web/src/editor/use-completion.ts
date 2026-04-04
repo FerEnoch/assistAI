@@ -132,7 +132,41 @@ export function useCompletion({
         if (response.status === 403) {
           invalidateCsrfToken();
         }
-        throw new Error(`HTTP ${response.status}`);
+
+        // Try to extract a useful message from JSON/text payloads
+        let errorMessage = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+        try {
+          const raw = await response.text();
+          if (raw.trim()) {
+            try {
+              const parsed: unknown = JSON.parse(raw);
+              if (typeof parsed === 'string' && parsed.trim()) {
+                errorMessage = parsed.trim();
+              } else if (parsed && typeof parsed === 'object') {
+                const obj = parsed as Record<string, unknown>;
+                const candidate = [
+                  obj.error,
+                  obj.message,
+                  obj.detail,
+                  obj.details,
+                  (obj.error as Record<string, unknown> | undefined)?.message,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                if (candidate) {
+                  errorMessage = candidate;
+                } else {
+                  errorMessage = JSON.stringify(parsed);
+                }
+              }
+            } catch {
+              errorMessage = raw.trim();
+            }
+          }
+        } catch {
+          // Ignore body read failures; keep HTTP fallback
+        }
+
+        throw new Error(errorMessage);
       }
 
       const reader = response.body?.getReader();
@@ -146,68 +180,93 @@ export function useCompletion({
 
       let buffer = '';
 
+      const processSseEvent = (rawEvent: string) => {
+        if (!rawEvent.trim()) return;
+
+        const lines = rawEvent.split('\n');
+        let eventType = 'message';
+        const dataLines: string[] = [];
+
+        for (const rawLine of lines) {
+          const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+          if (!line || line.startsWith(':')) continue;
+
+          if (line.startsWith('event:')) {
+            eventType = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.charAt(5) === ' ' ? line.slice(6) : line.slice(5));
+          }
+        }
+
+        const data = dataLines.join('\n');
+        if (!data || data === '[DONE]') return;
+
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(data) as Record<string, unknown>;
+        } catch {
+          setState((prev) => ({
+            ...prev,
+            status: 'error',
+            error: 'Respuesta inválida del servidor de completions.',
+          }));
+          return;
+        }
+
+        if (eventType === 'token' && typeof parsed.text === 'string') {
+          accumulated += parsed.text;
+          const currentPos = editor.state.selection.from;
+          showGhostText(editor, accumulated, currentPos);
+        }
+
+        if (eventType === 'meta' && typeof parsed.completionId === 'string' && !completionId) {
+          completionId = parsed.completionId;
+          setState((prev) => ({ ...prev, completionId }));
+        }
+
+        if (eventType === 'done' && Array.isArray(parsed.retrievalHits)) {
+          onEvidenceReceived?.({
+            completionId: typeof parsed.completionId === 'string' ? parsed.completionId : completionId ?? '',
+            isGrounded: Boolean(parsed.isGrounded),
+            retrievalHits: parsed.retrievalHits as EvidenceHit[],
+          });
+          setState((prev) => ({ ...prev, status: 'idle' }));
+        }
+
+        if (eventType === 'error') {
+          const payloadError = typeof parsed.error === 'string'
+            ? parsed.error
+            : ((parsed.error as Record<string, unknown> | undefined)?.message as string | undefined);
+
+          setState({
+            status: 'error',
+            completionId,
+            error: payloadError ?? 'Error en stream de completado',
+          });
+        }
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
+        buffer += decoder
+          .decode(value, { stream: true })
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n');
 
         // Parse SSE events from buffer (format: "event: type\ndata: json\n\n")
         const events = buffer.split('\n\n');
         buffer = events.pop() ?? ''; // Keep incomplete event in buffer
 
         for (const event of events) {
-          if (!event.trim()) continue;
-
-          const lines = event.split('\n');
-          let eventType = 'message';
-          let data = '';
-
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith('data: ')) {
-              data = line.slice(6);
-            }
-          }
-
-          if (!data || data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-
-            if (eventType === 'token' && parsed.text) {
-              accumulated += parsed.text;
-              const currentPos = editor.state.selection.from;
-              showGhostText(editor, accumulated, currentPos);
-            }
-
-            if (eventType === 'meta' && parsed.completionId && !completionId) {
-              completionId = parsed.completionId;
-              setState((prev) => ({ ...prev, completionId }));
-            }
-
-            // Handle done event with evidence data (A-080)
-            if (eventType === 'done' && parsed.retrievalHits) {
-              onEvidenceReceived?.({
-                completionId: parsed.completionId ?? completionId ?? '',
-                isGrounded: parsed.isGrounded ?? false,
-                retrievalHits: parsed.retrievalHits ?? [],
-              });
-              setState((prev) => ({ ...prev, status: 'idle' }));
-            }
-
-            if (eventType === 'error') {
-              setState({
-                status: 'error',
-                completionId,
-                error: parsed.error ?? 'Error desconocido',
-              });
-            }
-          } catch {
-            // Ignore parse errors on partial SSE data
-          }
+          processSseEvent(event);
         }
+      }
+
+      buffer += decoder.decode().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      if (buffer.trim()) {
+        processSseEvent(buffer);
       }
     } catch (err) {
       if ((err as Error).name === 'AbortError') return; // Expected

@@ -6,19 +6,21 @@ import { decrypt, PROVIDER_CONFIG } from '@assistai/shared';
 import type { ProviderAdapter } from './provider-adapter.interface';
 import { OpenRouterAdapter } from './openrouter.adapter';
 import { ByoAdapter } from './byo.adapter';
+import { FreeTierProvider } from './free-tier.provider';
 
 /**
  * Provider router — selects and creates the appropriate adapter for a workspace (A-075).
  *
  * Routing priority:
  * 1. Workspace default provider (if configured and active)
- * 2. Fallback to managed OpenRouter provider
+ * 2. Fallback to FreeTierProvider (round-robin across openrouter, cerebras, groq)
  *
  * Includes completion request logging (A-076).
  */
 @Injectable()
 export class ProviderRouter {
   private readonly logger = new Logger(ProviderRouter.name);
+  private readonly freeTierProvider = new FreeTierProvider();
 
   constructor(
     @InjectRepository(ModelEndpoint)
@@ -28,16 +30,23 @@ export class ProviderRouter {
   /**
    * Get the provider adapter for a workspace (A-075).
    *
-   * Tries workspace default first, falls back to managed OpenRouter.
+   * Tries workspace default first, falls back to FreeTierProvider (round-robin).
    * Returns the adapter and the endpoint ID for logging.
    */
   async getProvider(
     workspaceId: string,
   ): Promise<{ adapter: ProviderAdapter; endpointId: string | null; providerType: string }> {
     // Try workspace default endpoint first
-    const defaultEndpoint = await this.endpointRepo.findOne({
-      where: { workspaceId, isDefault: true, status: 'active' },
-    });
+    let defaultEndpoint: ModelEndpoint | null = null;
+    try {
+      defaultEndpoint = await this.endpointRepo.findOne({
+        where: { workspaceId, isDefault: true, status: 'active' },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[Router] Failed to load default endpoint from DB, using FreeTier fallback: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
 
     if (defaultEndpoint) {
       this.logger.debug(
@@ -52,25 +61,20 @@ export class ProviderRouter {
           providerType: defaultEndpoint.providerType,
         };
       } catch (err) {
-        // Default endpoint failed to initialize — fall through to managed
+        // Default endpoint failed to initialize — fall through to free tier
         this.logger.warn(
-          `[Router] Default endpoint failed, falling back to managed: ${err instanceof Error ? err.message : String(err)}`,
+          `[Router] Default endpoint failed, falling back to FreeTier: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
 
-    // Fallback: managed OpenRouter provider
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY is not configured — no provider available');
-    }
-
-    this.logger.debug('[Router] Using managed OpenRouter provider (fallback)');
+    // Fallback: FreeTierProvider (round-robin across 3 providers)
+    this.logger.debug('[Router] Using FreeTier provider (round-robin)');
 
     return {
-      adapter: new OpenRouterAdapter(apiKey),
+      adapter: this.freeTierProvider,
       endpointId: null,
-      providerType: 'managed',
+      providerType: 'free_tier',
     };
   }
 

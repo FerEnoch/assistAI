@@ -24,10 +24,12 @@ export {
   COMPLETION_CONFIG,
   PROVIDER_CONFIG,
   RATE_LIMIT_CONFIG,
+  FREE_PROVIDERS,
 } from './completion';
 export type {
   CompletionRequestPayload,
   RetrievalHit,
+  FreeProviderName,
 } from './completion';
 export { PRIVACY_DISCLOSURES } from './privacy';
 export {

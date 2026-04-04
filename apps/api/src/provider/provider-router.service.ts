@@ -37,16 +37,9 @@ export class ProviderRouter {
     workspaceId: string,
   ): Promise<{ adapter: ProviderAdapter; endpointId: string | null; providerType: string }> {
     // Try workspace default endpoint first
-    let defaultEndpoint: ModelEndpoint | null = null;
-    try {
-      defaultEndpoint = await this.endpointRepo.findOne({
-        where: { workspaceId, isDefault: true, status: 'active' },
-      });
-    } catch (err) {
-      this.logger.warn(
-        `[Router] Failed to load default endpoint from DB, using FreeTier fallback: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
+    const defaultEndpoint = await this.endpointRepo.findOne({
+      where: { workspaceId, isDefault: true, status: 'active' },
+    });
 
     if (defaultEndpoint) {
       this.logger.debug(

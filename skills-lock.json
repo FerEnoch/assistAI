@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "embedding-strategies": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "69fb6c7c234d1d643dc840d4dfde524e32ee7f00ff586126326a9072354f4088"
+    },
+    "vector-index-tuning": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "fa395b1b6e013871422e9fc00373438862de494cd036b834f2a027369c7616f5"
+    }
+  }
+}

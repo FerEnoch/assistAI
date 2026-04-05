@@ -39,4 +39,3 @@ docker-compose.override.yml
 
 # Agent tooling
 .atl/
-.atl/skill-registry.md

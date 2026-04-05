@@ -83,25 +83,46 @@ export class CompletionController {
     res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
     res.flushHeaders();
 
-    const observable = this.completionService.streamCompletion(wsId, userId, body);
+    // AbortController for cancellation on client disconnect (REQ-3)
+    const abort = new AbortController();
+
+    // Heartbeat to keep connection alive through proxies (REQ-1)
+    const heartbeatInterval = setInterval(() => {
+      if (!res.writableEnded) res.write(': ping\n\n');
+    }, 15_000);
+
+    const observable = this.completionService.streamCompletion(
+      wsId,
+      userId,
+      body,
+      abort.signal,
+    );
 
     const subscription = observable.subscribe({
       next(event) {
-        const eventType = event.type ?? 'message';
-        res.write(`event: ${eventType}\ndata: ${event.data}\n\n`);
+        if (!res.writableEnded) {
+          const eventType = event.type ?? 'message';
+          res.write(`event: ${eventType}\ndata: ${event.data}\n\n`);
+        }
       },
       error(err) {
-        const message = err instanceof Error ? err.message : String(err);
-        res.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`);
-        res.end();
+        clearInterval(heartbeatInterval);
+        if (!res.writableEnded) {
+          const message = err instanceof Error ? err.message : String(err);
+          res.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`);
+          res.end();
+        }
       },
       complete() {
-        res.end();
+        clearInterval(heartbeatInterval);
+        if (!res.writableEnded) res.end();
       },
     });
 
-    // Clean up if client disconnects
+    // Clean up if client disconnects (REQ-2, REQ-3)
     req.on('close', () => {
+      abort.abort();
+      clearInterval(heartbeatInterval);
       subscription.unsubscribe();
     });
   }

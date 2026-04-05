@@ -21,6 +21,8 @@ export interface StreamCompletionOptions {
   timeoutMs: number;
   /** Model name override (optional) */
   model?: string;
+  /** AbortSignal for cancellation on client disconnect */
+  signal?: AbortSignal;
 }
 
 /**

@@ -41,16 +41,19 @@ export class OpenRouterAdapter implements ProviderAdapter {
 
     this.logger.debug(`[OpenRouter] Streaming: model=${model} maxTokens=${options.maxTokens}`);
 
-    const stream = await client.chat.completions.create({
-      model,
-      max_tokens: options.maxTokens,
-      temperature: options.temperature,
-      stream: true,
-      messages: [
-        { role: 'system', content: options.system },
-        { role: 'user', content: options.user },
-      ],
-    });
+    const stream = await client.chat.completions.create(
+      {
+        model,
+        max_tokens: options.maxTokens,
+        temperature: options.temperature,
+        stream: true,
+        messages: [
+          { role: 'system', content: options.system },
+          { role: 'user', content: options.user },
+        ],
+      },
+      { signal: options.signal },
+    );
 
     for await (const chunk of stream) {
       const content = chunk.choices?.[0]?.delta?.content;

@@ -55,6 +55,8 @@ export class FreeTierProvider implements ProviderAdapter {
     const attempts: Array<{ provider: string; code: string; message: string }> = [];
 
     for (let attempt = 0; attempt < configured.length; attempt++) {
+      if (options.signal?.aborted) break;
+
       const provider = configured[(start + attempt) % configured.length];
 
       this.logger.log(
@@ -121,16 +123,19 @@ export class FreeTierProvider implements ProviderAdapter {
       `[${provider.name}] Streaming: model=${model} maxTokens=${options.maxTokens}`,
     );
 
-    const stream = await client.chat.completions.create({
-      model,
-      max_tokens: options.maxTokens,
-      temperature: options.temperature,
-      messages: [
-        { role: 'system', content: options.system },
-        { role: 'user', content: options.user },
-      ],
-      stream: true,
-    });
+    const stream = await client.chat.completions.create(
+      {
+        model,
+        max_tokens: options.maxTokens,
+        temperature: options.temperature,
+        messages: [
+          { role: 'system', content: options.system },
+          { role: 'user', content: options.user },
+        ],
+        stream: true,
+      },
+      { signal: options.signal },
+    );
 
     for await (const chunk of stream) {
       const content = chunk.choices?.[0]?.delta?.content;

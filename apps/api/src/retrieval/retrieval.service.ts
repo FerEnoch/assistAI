@@ -50,54 +50,58 @@ export class RetrievalService {
     const startMs = Date.now();
 
     try {
-      // Set HNSW ef_search for this query (session-level, per A-053)
-      await this.dataSource.query(
-        `SET LOCAL hnsw.ef_search = ${RETRIEVAL_CONFIG.hnswEfSearch}`,
-      );
-
-      // Cosine distance: <=> returns distance (0 = identical, 2 = opposite)
-      // Similarity = 1 - distance
-      const rows = await this.dataSource.query(
-        `SELECT
-          dc.id AS "chunkId",
-          dc.document_id AS "documentId",
-          dc.content,
-          (1 - (dc.embedding <=> $1::vector)) AS similarity,
-          d.title AS "documentTitle"
-        FROM document_chunks dc
-        JOIN documents d ON d.id = dc.document_id
-        WHERE dc.workspace_id = $2
-          AND dc.embedding IS NOT NULL
-          AND (1 - (dc.embedding <=> $1::vector)) >= $3
-        ORDER BY dc.embedding <=> $1::vector
-        LIMIT $4`,
-        [vectorLiteral, workspaceId, threshold, topK],
-      );
-
-      const latencyMs = Date.now() - startMs;
-
-      // Debug logging (A-055)
-      this.logger.debug(
-        `[Retrieval] workspace=${workspaceId} ` +
-        `results=${rows.length}/${topK} ` +
-        `threshold=${threshold} ` +
-        `latency=${latencyMs}ms ` +
-        `topSimilarity=${rows.length > 0 ? Number(rows[0].similarity).toFixed(4) : 'N/A'}`,
-      );
-
-      if (latencyMs > 80) {
-        this.logger.warn(
-          `[Retrieval] Slow query: ${latencyMs}ms (target: <80ms) workspace=${workspaceId}`,
+      // Wrap SET LOCAL + SELECT in a single transaction to guarantee both
+      // statements execute on the same underlying pg connection (REQ-1).
+      return await this.dataSource.transaction(async (manager) => {
+        // Set HNSW ef_search for this transaction (per A-053)
+        await manager.query(
+          `SET LOCAL hnsw.ef_search = ${RETRIEVAL_CONFIG.hnswEfSearch}`,
         );
-      }
 
-      return rows.map((row: Record<string, unknown>) => ({
-        chunkId: row.chunkId as string,
-        documentId: row.documentId as string,
-        content: row.content as string,
-        similarity: Number(row.similarity),
-        documentTitle: (row.documentTitle as string | null) ?? null,
-      }));
+        // Cosine distance: <=> returns distance (0 = identical, 2 = opposite)
+        // Similarity = 1 - distance
+        const rows = await manager.query(
+          `SELECT
+            dc.id AS "chunkId",
+            dc.document_id AS "documentId",
+            dc.content,
+            (1 - (dc.embedding <=> $1::vector)) AS similarity,
+            d.title AS "documentTitle"
+          FROM document_chunks dc
+          JOIN documents d ON d.id = dc.document_id
+          WHERE dc.workspace_id = $2
+            AND dc.embedding IS NOT NULL
+            AND (1 - (dc.embedding <=> $1::vector)) >= $3
+          ORDER BY dc.embedding <=> $1::vector
+          LIMIT $4`,
+          [vectorLiteral, workspaceId, threshold, topK],
+        );
+
+        const latencyMs = Date.now() - startMs;
+
+        // Debug logging (A-055)
+        this.logger.debug(
+          `[Retrieval] workspace=${workspaceId} ` +
+          `results=${rows.length}/${topK} ` +
+          `threshold=${threshold} ` +
+          `latency=${latencyMs}ms ` +
+          `topSimilarity=${rows.length > 0 ? Number(rows[0].similarity).toFixed(4) : 'N/A'}`,
+        );
+
+        if (latencyMs > 80) {
+          this.logger.warn(
+            `[Retrieval] Slow query: ${latencyMs}ms (target: <80ms) workspace=${workspaceId}`,
+          );
+        }
+
+        return rows.map((row: Record<string, unknown>) => ({
+          chunkId: row.chunkId as string,
+          documentId: row.documentId as string,
+          content: row.content as string,
+          similarity: Number(row.similarity),
+          documentTitle: (row.documentTitle as string | null) ?? null,
+        }));
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`[Retrieval] Query failed: workspace=${workspaceId} error=${message}`);

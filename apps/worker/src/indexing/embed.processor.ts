@@ -50,29 +50,31 @@ export class EmbedProcessor extends WorkerHost {
     // Extract texts for embedding
     const texts = chunks.map((c) => c.content);
 
+    // Generate embeddings via provider (A-051)
+    const embeddings = await this.embeddingProvider.embedBatch(texts);
+
+    // Mismatch guard — programming error, throw BEFORE any DB write
+    // Intentionally outside try/catch so it does NOT mark document as failed
+    if (embeddings.length !== chunks.length) {
+      throw new Error(
+        `Embedding count mismatch: got ${embeddings.length}, expected ${chunks.length}`,
+      );
+    }
+
     try {
-      // Generate embeddings via provider (A-051)
-      const embeddings = await this.embeddingProvider.embedBatch(texts);
-
-      if (embeddings.length !== chunks.length) {
-        throw new Error(
-          `Embedding count mismatch: got ${embeddings.length}, expected ${chunks.length}`,
-        );
-      }
-
       // Write embeddings to DB using raw SQL (pgvector vector type)
       await this.dataSource.transaction(async (manager) => {
-        for (let i = 0; i < chunks.length; i++) {
-          const vectorLiteral = `[${embeddings[i].join(',')}]`;
+        const chunkIds = chunks.map((c) => c.id);
+        const vectorLiterals = embeddings.map((e) => `[${e.join(',')}]`);
 
-          await manager.query(
-            `UPDATE document_chunks
-             SET embedding = $1::vector,
-                 model_version = $2
-             WHERE id = $3`,
-            [vectorLiteral, this.embeddingProvider.modelVersion, chunks[i].id],
-          );
-        }
+        await manager.query(
+          `UPDATE document_chunks
+           SET embedding = vals.embedding::vector,
+               model_version = $3
+           FROM unnest($1::uuid[], $2::text[]) AS vals(id, embedding)
+           WHERE document_chunks.id = vals.id`,
+          [chunkIds, vectorLiterals, this.embeddingProvider.modelVersion],
+        );
 
         // Update document status to indexed (if it was in processing/embedding state)
         await manager.query(

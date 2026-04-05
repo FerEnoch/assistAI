@@ -19,6 +19,45 @@ export const RETRIEVAL_CONFIG = {
 } as const;
 
 /**
+ * Free-tier provider configuration for round-robin.
+ * Each provider has its API key from environment and a default model.
+ *
+ * THIS IS THE SINGLE SOURCE OF TRUTH for provider URLs and model IDs.
+ * COMPLETION_CONFIG and PROVIDER_CONFIG derive their values from here.
+ *
+ * Model IDs — keep these up to date:
+ *  - OpenRouter: https://openrouter.ai/models (filter by :free)
+ *  - Cerebras:   https://inference-docs.cerebras.ai/api-reference/models
+ *  - Groq:       https://console.groq.com/docs/models (check deprecations page)
+ */
+export const FREE_PROVIDERS = [
+  {
+    name: 'openrouter',
+    apiKeyEnv: 'OPENROUTER_API_KEY',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    // Free-tier model — no credits consumed. Top-weekly free model on OpenRouter.
+    model: 'meta-llama/llama-3.2-3b-instruct:free',
+  },
+  {
+    name: 'cerebras',
+    apiKeyEnv: 'CEREBRAS_API_KEY',
+    baseUrl: 'https://api.cerebras.ai/v1',
+    // Cerebras uses dot notation for model versions, not dashes.
+    // Verified production model in docs.
+    model: 'llama3.1-8b',
+  },
+  {
+    name: 'groq',
+    apiKeyEnv: 'GROQ_API_KEY',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    // llama-3.1-70b-versatile was deprecated Jan 24, 2025 → replaced by 3.3.
+    model: 'llama-3.3-70b-versatile',
+  },
+] as const;
+
+export type FreeProviderName = typeof FREE_PROVIDERS[number]['name'];
+
+/**
  * Completion service configuration (A-070, A-071).
  *
  * Controls debounce timing, gating heuristics, and prompt assembly.
@@ -48,9 +87,10 @@ export const COMPLETION_CONFIG = {
   maxCompletionTokens: 150,
 
   /**
-   * Default model for completions via OpenRouter.
+   * Default model for completions — derived from FREE_PROVIDERS (single source of truth).
+   * Resolves to OpenRouter's free-tier model.
    */
-  defaultModel: 'openai/gpt-4o-mini',
+  defaultModel: FREE_PROVIDERS.find((p) => p.name === 'openrouter')!.model,
 
   /**
    * System prompt template for inline completions.
@@ -89,39 +129,12 @@ export const PROVIDER_CONFIG = {
   /** Maximum response body size in bytes (1MB) */
   maxResponseBytes: 1_048_576,
 
-  /** OpenRouter base URL */
-  openRouterBaseUrl: 'https://openrouter.ai/api/v1',
+  /** OpenRouter base URL — derived from FREE_PROVIDERS (single source of truth) */
+  openRouterBaseUrl: FREE_PROVIDERS.find((p) => p.name === 'openrouter')!.baseUrl,
 
-  /** Default model for managed provider */
-  defaultManagedModel: 'openai/gpt-4o-mini',
+  /** Default model for managed provider — derived from FREE_PROVIDERS (single source of truth) */
+  defaultManagedModel: FREE_PROVIDERS.find((p) => p.name === 'openrouter')!.model,
 } as const;
-
-/**
- * Free-tier provider configuration for round-robin.
- * Each provider has its API key from environment and a default model.
- */
-export const FREE_PROVIDERS = [
-  {
-    name: 'openrouter',
-    apiKeyEnv: 'OPENROUTER_API_KEY',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    model: 'openai/gpt-4o-mini',
-  },
-  {
-    name: 'cerebras',
-    apiKeyEnv: 'CEREBRAS_API_KEY',
-    baseUrl: 'https://api.cerebras.ai/v1',
-    model: 'llama-3.3-70b',
-  },
-  {
-    name: 'groq',
-    apiKeyEnv: 'GROQ_API_KEY',
-    baseUrl: 'https://api.groq.com/openai/v1',
-    model: 'llama-3.1-70b-versatile',
-  },
-] as const;
-
-export type FreeProviderName = typeof FREE_PROVIDERS[number]['name'];
 
 /**
  * Rate limit configuration (A-095).

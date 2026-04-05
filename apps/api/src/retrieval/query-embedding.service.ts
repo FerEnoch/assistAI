@@ -15,12 +15,26 @@ import { EMBEDDING_CONFIG } from '@assistai/shared';
 export class QueryEmbeddingService {
   private readonly logger = new Logger(QueryEmbeddingService.name);
   private readonly client: OpenAI;
+  private readonly isEmbeddingsConfigured: boolean;
+
+  private isPlaceholderKey(value: string | undefined): boolean {
+    if (!value) return true;
+    const normalized = value.trim().toLowerCase();
+    return (
+      normalized.length === 0 ||
+      normalized.includes('placeholder') ||
+      normalized.includes('changeme') ||
+      normalized.includes('your-api-key')
+    );
+  }
 
   constructor() {
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    this.isEmbeddingsConfigured = !this.isPlaceholderKey(apiKey);
+
+    if (!this.isEmbeddingsConfigured) {
       this.logger.warn(
-        '[Embedding] OPENAI_API_KEY not set — query embeddings will be unavailable',
+        '[Embedding] OPENAI_API_KEY missing/placeholder — query embeddings will be skipped',
       );
     }
 
@@ -34,8 +48,8 @@ export class QueryEmbeddingService {
    * @returns The embedding vector, or null if generation fails (non-fatal)
    */
   async embed(text: string): Promise<number[] | null> {
-    if (!process.env.OPENAI_API_KEY) {
-      this.logger.warn('[Embedding] Skipping — OPENAI_API_KEY not configured');
+    if (!this.isEmbeddingsConfigured) {
+      this.logger.debug('[Embedding] Skipping — OPENAI_API_KEY not configured with a real value');
       return null;
     }
 

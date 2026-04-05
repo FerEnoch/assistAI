@@ -4,14 +4,11 @@ import { RETRIEVAL_CONFIG, EMBEDDING_CONFIG } from '@assistai/shared';
 
 /**
  * Retrieval service tests — tenant isolation, threshold filtering, debug logging (A-053, A-055, A-056).
+ *
+ * findSimilarChunks now runs inside dataSource.transaction(), so we mock
+ * `transaction` as a callback invoker that passes a `mockManager` to the cb.
+ * findDocumentsNeedingReindex still uses dataSource.query directly.
  */
-
-// Mock DataSource
-function createMockDataSource(queryFn?: (...args: unknown[]) => unknown) {
-  return {
-    query: vi.fn(queryFn ?? (async () => [])),
-  };
-}
 
 function fakeEmbedding(dim = EMBEDDING_CONFIG.dimensions): number[] {
   return Array.from({ length: dim }, () => Math.random());
@@ -19,23 +16,40 @@ function fakeEmbedding(dim = EMBEDDING_CONFIG.dimensions): number[] {
 
 describe('RetrievalService', () => {
   let service: RetrievalService;
-  let mockDs: ReturnType<typeof createMockDataSource>;
+  let mockManager: { query: ReturnType<typeof vi.fn> };
+  let mockDs: {
+    query: ReturnType<typeof vi.fn>;
+    transaction: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
-    mockDs = createMockDataSource();
+    mockManager = { query: vi.fn(async () => []) };
+    mockDs = {
+      query: vi.fn(async () => []),
+      transaction: vi.fn(async (cb: (manager: typeof mockManager) => Promise<unknown>) => cb(mockManager)),
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     service = new RetrievalService(mockDs as any);
   });
 
   describe('findSimilarChunks', () => {
+    it('wraps SET LOCAL and SELECT in a single transaction', async () => {
+      const embedding = fakeEmbedding();
+
+      await service.findSimilarChunks('ws-1', embedding);
+
+      expect(mockDs.transaction).toHaveBeenCalledTimes(1);
+      expect(mockManager.query).toHaveBeenCalledTimes(2);
+    });
+
     it('enforces workspace_id tenant isolation in the query', async () => {
       const wsId = 'workspace-123';
       const embedding = fakeEmbedding();
 
       await service.findSimilarChunks(wsId, embedding);
 
-      // Second call is the actual search query (first is SET LOCAL)
-      const searchCall = mockDs.query.mock.calls[1];
+      // Second manager.query call is the search query (first is SET LOCAL)
+      const searchCall = mockManager.query.mock.calls[1];
       expect(searchCall).toBeDefined();
 
       const sql = searchCall[0] as string;
@@ -51,7 +65,7 @@ describe('RetrievalService', () => {
 
       await service.findSimilarChunks('ws-1', embedding);
 
-      const firstCall = mockDs.query.mock.calls[0];
+      const firstCall = mockManager.query.mock.calls[0];
       expect(firstCall[0]).toContain(`SET LOCAL hnsw.ef_search = ${RETRIEVAL_CONFIG.hnswEfSearch}`);
     });
 
@@ -62,7 +76,7 @@ describe('RetrievalService', () => {
         similarityThreshold: 0.8,
       });
 
-      const searchCall = mockDs.query.mock.calls[1];
+      const searchCall = mockManager.query.mock.calls[1];
       const params = searchCall[1] as unknown[];
 
       // $3 is the threshold parameter
@@ -74,7 +88,7 @@ describe('RetrievalService', () => {
 
       await service.findSimilarChunks('ws-1', embedding);
 
-      const searchCall = mockDs.query.mock.calls[1];
+      const searchCall = mockManager.query.mock.calls[1];
       const params = searchCall[1] as unknown[];
 
       expect(params[2]).toBe(RETRIEVAL_CONFIG.similarityThreshold);
@@ -85,7 +99,7 @@ describe('RetrievalService', () => {
 
       await service.findSimilarChunks('ws-1', embedding, { topK: 2 });
 
-      const searchCall = mockDs.query.mock.calls[1];
+      const searchCall = mockManager.query.mock.calls[1];
       const params = searchCall[1] as unknown[];
 
       // $4 is the LIMIT parameter
@@ -97,7 +111,7 @@ describe('RetrievalService', () => {
 
       await service.findSimilarChunks('ws-1', embedding);
 
-      const searchCall = mockDs.query.mock.calls[1];
+      const searchCall = mockManager.query.mock.calls[1];
       const params = searchCall[1] as unknown[];
 
       expect(params[3]).toBe(RETRIEVAL_CONFIG.topK);
@@ -129,7 +143,7 @@ describe('RetrievalService', () => {
         },
       ];
 
-      mockDs.query.mockImplementation(async (...args: unknown[]) => {
+      mockManager.query.mockImplementation(async (...args: unknown[]) => {
         if (typeof args[0] === 'string' && args[0].includes('SET LOCAL')) return [];
         return mockRows;
       });
@@ -151,19 +165,45 @@ describe('RetrievalService', () => {
       const embedding = fakeEmbedding();
 
       await service.findSimilarChunks('workspace-A', embedding);
+
+      // Verify workspace-A call passed correct workspace ID
+      const callA = mockManager.query.mock.calls[1]; // search query for A
+      expect((callA[1] as unknown[])[1]).toBe('workspace-A');
+
+      // Reset for second call
+      mockManager.query.mockClear();
+
       await service.findSimilarChunks('workspace-B', embedding);
 
-      // Verify each call passes its own workspace ID
-      const callA = mockDs.query.mock.calls[1]; // search query for A
-      const callB = mockDs.query.mock.calls[3]; // search query for B
-
-      expect((callA[1] as unknown[])[1]).toBe('workspace-A');
+      const callB = mockManager.query.mock.calls[1]; // search query for B
       expect((callB[1] as unknown[])[1]).toBe('workspace-B');
     });
 
     it('returns empty array when no chunks match', async () => {
       const results = await service.findSimilarChunks('ws-empty', fakeEmbedding());
       expect(results).toEqual([]);
+    });
+
+    it('propagates an error thrown during SET LOCAL', async () => {
+      const dbError = new Error('DB connection lost');
+      mockManager.query.mockRejectedValueOnce(dbError);
+
+      await expect(
+        service.findSimilarChunks('ws-1', fakeEmbedding(), {}),
+      ).rejects.toThrow('DB connection lost');
+
+      expect(mockDs.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates an error thrown during the vector SELECT', async () => {
+      // First query (SET LOCAL) succeeds, second (SELECT) fails
+      mockManager.query
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('vector search failed'));
+
+      await expect(
+        service.findSimilarChunks('ws-1', fakeEmbedding(), {}),
+      ).rejects.toThrow('vector search failed');
     });
   });
 

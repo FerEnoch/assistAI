@@ -8,66 +8,7 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { Request, Response } from 'express';
-
-/**
- * User-friendly error messages for common technical errors.
- * These are shown to users in production.
- */
-const ERROR_MESSAGES: Record<string, string> = {
-  // Redis errors
-  ECONNREFUSED: 'El servicio temporalmente no está disponible. Intenta de nuevo en unos minutos.',
-  ETIMEDOUT: 'La conexión tardó demasiado. Verifica tu conexión a internet.',
-  ENOTFOUND: 'No se pudo conectar al servidor. Intenta de nuevo.',
-  'ERR syntax error': 'Error de configuración del servidor. Contacta soporte.',
-
-  // Database errors
-  'connection refused': 'Error de base de datos. Intenta más tarde.',
-  'duplicate key': 'Ya existe un registro con esos datos.',
-  'null value': 'Falta información requerida. Completa todos los campos.',
-
-  // Validation errors
-  'invalid credentials': 'Credenciales incorrectas. Verifica tu email y contraseña.',
-  unauthorized: 'Sesión expirada o inválida. Inicia sesión nuevamente.',
-  forbidden: 'No tienes permiso para realizar esta acción.',
-
-  // Generic fallbacks
-  'internal server error': 'Algo salió mal. Intenta de nuevo.',
-};
-
-/**
- * Maps technical error messages to user-friendly messages.
- */
-function getUserMessage(error: unknown, isProduction: boolean): string {
-  if (!isProduction) {
-    // In development, return the actual error for debugging
-    if (error instanceof Error) {
-      return error.message;
-    }
-    return String(error);
-  }
-
-  // In production, map to user-friendly message
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-
-    // Check for exact matches first
-    for (const [key, userMsg] of Object.entries(ERROR_MESSAGES)) {
-      if (message.includes(key.toLowerCase())) {
-        return userMsg;
-      }
-    }
-
-    // Check for partial matches
-    if (message.includes('redis')) {
-      return 'Error de conexión con el servidor. Intenta más tarde.';
-    }
-    if (message.includes('database') || message.includes('postgres')) {
-      return 'Error de base de datos. Intenta más tarde.';
-    }
-  }
-
-  return 'Algo salió mal. Intenta de nuevo.';
-}
+import { mapToErrorCode, getErrorMessage } from '../errors';
 
 /**
  * Global exception filter that catches all unhandled errors
@@ -89,29 +30,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     // Determine HTTP status
-    let httpStatus: number;
-    let errorMessage: string;
-    let errorCode: string | undefined;
+    const httpStatus = exception instanceof HttpException
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    if (exception instanceof HttpException) {
-      httpStatus = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
-
-      // Handle custom error responses from NestJS
-      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
-        const resp = exceptionResponse as Record<string, unknown>;
-        errorMessage = (resp.message as string) || exception.message;
-        errorCode = resp.error as string | undefined;
-      } else {
-        errorMessage = exception.message;
-      }
-    } else {
-      httpStatus = HttpStatus.INTERNAL_SERVER_ERROR;
-      errorMessage = 'Internal server error';
-    }
-
-    // Get user-friendly message
-    const userMessage = getUserMessage(exception, process.env.NODE_ENV !== 'production');
+    // Resolve user-friendly message from centralized taxonomy
+    const error = exception instanceof Error ? exception : new Error(String(exception));
+    const userMessage = getErrorMessage(mapToErrorCode(error.message));
 
     // Log full error server-side
     if (exception instanceof Error) {
@@ -128,7 +53,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: httpStatus,
         ...(process.env.NODE_ENV !== 'production' && {
           // Include debug info only in development
-          code: errorCode,
           details: exception instanceof Error ? exception.message : undefined,
           path: httpAdapter.getRequestUrl(request),
           timestamp: new Date().toISOString(),

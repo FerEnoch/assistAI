@@ -48,6 +48,7 @@ General-purpose skills for various development domains.
 | Use when implementing complex type logic, creating reusable type utilities, or ensuring compile-time type safety in TypeScript projects. | typescript-advanced-types | /home/ferenoch/.agents/skills/typescript-advanced-types/SKILL.md |
 | Use when implementing E2E tests, debugging flaky tests, or establishing testing standards. | e2e-testing-patterns | /home/ferenoch/.agents/skills/e2e-testing-patterns/SKILL.md |
 | Use when setting up CI/CD with GitHub Actions, automating development workflows, or creating reusable workflow templates. | github-actions-templates | /home/ferenoch/.agents/skills/github-actions-templates/SKILL.md |
+| Use when integrating OpenRouter SDK, calling models via callModel, implementing tools with Zod, or configuring OpenRouter providers. | openrouter-typescript-sdk | /home/ferenoch/.config/opencode/skills/openrouter-typescript-sdk/SKILL.md |
 | Use when the user asks to build web components, pages, artifacts, posters, or applications requiring distinctive, production-grade frontend interfaces. | frontend-design | /home/ferenoch/.agents/skills/frontend-design/SKILL.md |
 | Use for interface design tasks like dashboards, admin panels, SaaS apps, tools, and data interfaces (NOT for marketing design). | interface-design | /home/ferenoch/.agents/skills/interface-design/SKILL.md |
 | Use when building adaptive interfaces, implementing fluid layouts, or creating component-level responsive behavior. | responsive-design | /home/ferenoch/.agents/skills/responsive-design/SKILL.md |
@@ -187,6 +188,20 @@ Pre-digested rules per skill. Delegators copy matching blocks into sub-agent pro
 - Build Docker images securely and push them to designated container registries.
 - Implement matrix builds to parallelize and test code across multiple OS and language environments simultaneously.
 - Integrate security scans and orchestrate automated deployment pipelines (e.g., to Kubernetes clusters).
+
+### openrouter-typescript-sdk
+- Install SDK with `npm install @openrouter/sdk` and initialize with `new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY })`
+- Use `callModel()` as the primary interface — provides type safety, auto tool execution, and multi-turn support
+- Accepts flexible input: string (auto-converts to user message), message array (multi-turn), or multimodal content
+- Get responses via `getText()` (full text after tools), `getTextStream()` (streaming), or `getResponse()` (full object with usage)
+- Define tools using `tool()` from SDK with Zod schemas for `inputSchema` and `outputSchema` — provides runtime validation and TypeScript inference
+- Set stop conditions to prevent runaway costs: `stopWhen: [stepCountIs(10), maxCost(1.00)]`
+- For streaming, use `getFullResponsesStream()` for event types or `getToolCallsStream()` for tool execution
+- Handle errors by status code: 401 (invalid key), 402 (no credits), 429 (rate limited with backoff retry), 503 (model unavailable, try fallback)
+- For user-facing apps, implement OAuth PKCE flow using `createAuthCode()` and `exchangeAuthCodeForAPIKey()` instead of storing user keys
+- Convert between ecosystems using `fromChatMessages()`/`toChatMessage()` for OpenAI, `fromClaudeMessages()`/`toClaudeMessage()` for Claude format
+- Use dynamic parameters with function callbacks based on `TurnContext`: `model: (ctx) => ctx.numberOfTurns > 3 ? 'openai/gpt-4' : 'openai/gpt-4o-mini'`
+- Access 300+ models through OpenRouter; list available via `client.models.list()` and check credits with `client.credits.getCredits()`
 
 ### frontend-design
 - Commit to a BOLD aesthetic direction (e.g., brutally minimal, maximalist chaos, retro-futuristic, editorial) based on the project's purpose and constraints.

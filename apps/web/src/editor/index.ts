@@ -5,3 +5,7 @@ export type { CompletionStatus } from './use-completion';
 export { EvidencePanel } from './EvidencePanel';
 export { useEvidence } from './use-evidence';
 export type { EvidenceHit, EvidenceState } from './use-evidence';
+export { useEditorSession } from './use-editor-session';
+export type { EditorSessionState } from './use-editor-session';
+export { useEditorSetup } from './use-editor-setup';
+export type { EditorSetupOptions, EditorSetupState } from './use-editor-setup';

@@ -17,6 +17,7 @@ import { RetrievalService } from '../retrieval/retrieval.service';
 import { QueryEmbeddingService } from '../retrieval/query-embedding.service';
 import { PromptAssembler } from './prompt-assembler';
 import { ProviderRouter } from '../provider/provider-router.service';
+import { mapToErrorCode, getErrorMessage, ErrorCode } from '../errors';
 
 /**
  * SSE message event structure for NestJS @Sse().
@@ -97,11 +98,12 @@ export class CompletionService {
     workspaceId: string,
     userId: string,
     payload: CompletionRequestPayload,
+    signal?: AbortSignal,
   ): Observable<SseMessageEvent> {
     const subject = new Subject<SseMessageEvent>();
 
     // Run pipeline asynchronously
-    void this.runPipeline(workspaceId, userId, payload, subject);
+    void this.runPipeline(workspaceId, userId, payload, subject, signal);
 
     return subject.asObservable();
   }
@@ -125,19 +127,28 @@ export class CompletionService {
     userId: string,
     payload: CompletionRequestPayload,
     subject: Subject<SseMessageEvent>,
+    signal?: AbortSignal,
   ): Promise<void> {
     const startMs = Date.now();
     let timedOut = false;
     let savedCompletionId: string | null = null;
 
+    // Early exit: client already disconnected before pipeline started
+    if (signal?.aborted) {
+      subject.complete();
+      return;
+    }
+
     // Timeout budget (A-077) — abort after totalTimeoutMs
     const timeoutHandle = setTimeout(() => {
       timedOut = true;
+      const timeoutCode = ErrorCode.COMPLETION_TIMEOUT;
+      const timeoutMessage = getErrorMessage(timeoutCode);
       subject.next({
         type: 'error',
         data: JSON.stringify({
-          error: 'La solicitud excedió el tiempo límite. Intentá de nuevo.',
-          code: 'TIMEOUT',
+          error: timeoutMessage,
+          code: timeoutCode,
         }),
       });
       subject.complete();
@@ -229,7 +240,7 @@ export class CompletionService {
       // Step 6: Stream from provider (A-073, A-074)
       const providerStart = Date.now();
 
-      if (timedOut) return;
+      if (timedOut || signal?.aborted) return;
 
       const stream = adapter.streamCompletion({
         system: prompt.system,
@@ -237,10 +248,11 @@ export class CompletionService {
         maxTokens: COMPLETION_CONFIG.maxCompletionTokens,
         temperature: 0.3,
         timeoutMs: PROVIDER_CONFIG.totalTimeoutMs - (Date.now() - startMs),
+        signal,
       });
 
       for await (const token of stream) {
-        if (timedOut) break;
+        if (timedOut || signal?.aborted) break;
 
         if (token.text) {
           subject.next({
@@ -292,18 +304,26 @@ export class CompletionService {
         `grounded=${isGrounded}`,
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const mappedError = this.mapErrorToUserError(message);
+      // Abort path: silent cleanup — client already disconnected (REQ-6)
+      if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) {
+        return;
+      }
+
+      const rawMessage = err instanceof Error ? err.message : String(err);
+      const code = mapToErrorCode(rawMessage);
+      const message = getErrorMessage(code);
 
       this.logger.error(
-        `[Completion] Pipeline error: code=${mappedError.code} message=${message}`,
+        `[Completion] Pipeline error: code=${code} message=${rawMessage}`,
         err instanceof Error ? err.stack : undefined,
       );
 
       // Update status if we have a saved record
       if (savedCompletionId) {
         await this.completionRepo.update(savedCompletionId, {
-          outcomeStatus: mappedError.code === 'TIMEOUT' ? 'timeout' : 'error',
+          outcomeStatus: code === ErrorCode.INFRA_TIMEOUT || code === ErrorCode.COMPLETION_TIMEOUT
+            ? 'timeout'
+            : 'error',
           latencyMs: Date.now() - startMs,
         }).catch(() => {/* swallow — best effort */});
       }
@@ -312,8 +332,8 @@ export class CompletionService {
         subject.next({
           type: 'error',
           data: JSON.stringify({
-            error: mappedError.message,
-            code: mappedError.code,
+            error: message,
+            code,
           }),
         });
       }
@@ -321,74 +341,6 @@ export class CompletionService {
       clearTimeout(timeoutHandle);
       subject.complete();
     }
-  }
-
-  /**
-   * Map backend error messages to user-friendly Spanish messages.
-   */
-  private mapErrorToUserError(error: string): { code: string; message: string } {
-    const lower = error.toLowerCase();
-
-    if (lower.includes('timeout') || lower.includes('tiempo')) {
-      return {
-        code: 'TIMEOUT',
-        message: 'La solicitud tardó demasiado. Intentá de nuevo.',
-      };
-    }
-
-    if (lower.includes('no_provider_configured') || lower.includes('no hay proveedores')) {
-      return {
-        code: 'NO_PROVIDER_AVAILABLE',
-        message: 'No hay proveedores de IA disponibles en este momento.',
-      };
-    }
-
-    if (lower.includes('quota_exhausted') || lower.includes('quota') || lower.includes('limit') || lower.includes('agotad')) {
-      return {
-        code: 'QUOTA_EXHAUSTED',
-        message: 'Se agotó la cuota gratuita de IA. Probá más tarde.',
-      };
-    }
-
-    if (lower.includes('rate_limit') || lower.includes('frecuencia') || lower.includes('429')) {
-      return {
-        code: 'RATE_LIMITED',
-        message: 'Hay muchas solicitudes. Esperá un momento e intentá de nuevo.',
-      };
-    }
-
-    if (lower.includes('providers_unavailable') || lower.includes('network') || lower.includes('connection') || lower.includes('econnrefused') || lower.includes('enotfound')) {
-      return {
-        code: 'PROVIDERS_UNAVAILABLE',
-        message: 'Los proveedores de IA no están disponibles temporalmente.',
-      };
-    }
-
-    if (lower.includes('all_providers_failed')) {
-      return {
-        code: 'ALL_PROVIDERS_FAILED',
-        message: 'Ningún proveedor de IA pudo completar la solicitud en este momento.',
-      };
-    }
-
-    if (lower.includes('authentication') || lower.includes('autentic') || lower.includes('api_key') || lower.includes('invalid') || lower.includes('401') || lower.includes('403')) {
-      return {
-        code: 'AUTH_ERROR',
-        message: 'Error de autenticación con el proveedor de IA.',
-      };
-    }
-
-    if (lower.includes('bad_request') || lower.includes('invalid_request') || lower.includes('model') || lower.includes('unsupported') || lower.includes('400')) {
-      return {
-        code: 'BAD_REQUEST',
-        message: 'La solicitud no pudo procesarse (modelo o parámetros inválidos).',
-      };
-    }
-
-    return {
-      code: 'COMPLETION_FAILED',
-      message: 'Error al generar la sugerencia. Intentá de nuevo.',
-    };
   }
 
   /**

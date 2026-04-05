@@ -20,6 +20,10 @@ const GHOST_TEXT_KEY = new PluginKey('ghostText');
 export interface GhostTextOptions {
   /** CSS class for the ghost text span */
   className: string;
+  /** Called when the user accepts ghost text via Tab */
+  onAccepted?: () => void;
+  /** Called when the user dismisses ghost text via Escape or typing */
+  onDismissed?: () => void;
 }
 
 export interface GhostTextState {
@@ -33,6 +37,8 @@ export const GhostText = Extension.create<GhostTextOptions>({
   addOptions() {
     return {
       className: 'ghost-text',
+      onAccepted: undefined,
+      onDismissed: undefined,
     };
   },
 
@@ -44,7 +50,7 @@ export const GhostText = Extension.create<GhostTextOptions>({
   },
 
   addProseMirrorPlugins() {
-    const { className } = this.options;
+    const { className, onAccepted, onDismissed } = this.options;
 
     return [
       new Plugin({
@@ -117,6 +123,7 @@ export const GhostText = Extension.create<GhostTextOptions>({
                 .setMeta(GHOST_TEXT_KEY, { text: null, position: null });
 
               view.dispatch(tr);
+              onAccepted?.();
               return true;
             }
 
@@ -129,6 +136,7 @@ export const GhostText = Extension.create<GhostTextOptions>({
                 position: null,
               });
               view.dispatch(tr);
+              onDismissed?.();
               return true;
             }
 
@@ -138,6 +146,7 @@ export const GhostText = Extension.create<GhostTextOptions>({
               position: null,
             });
             view.dispatch(tr);
+            onDismissed?.();
             return false; // Let the keypress through
           },
         },

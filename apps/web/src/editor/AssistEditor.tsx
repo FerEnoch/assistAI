@@ -1,159 +1,22 @@
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect, useState, useCallback } from 'react';
-import { GhostText } from './ghost-text-extension';
-import { useCompletion } from './use-completion';
+import { useState, useCallback } from 'react';
+import { EditorContent } from '@tiptap/react';
 import type { CompletionStatus } from './use-completion';
-import { useEvidence } from './use-evidence';
+import { useEditorSession } from './use-editor-session';
+import { useEditorSetup } from './use-editor-setup';
 import { EvidencePanel } from './EvidencePanel';
-import envConfig from '../config';
-import { getCsrfToken } from '../auth/csrf';
-
-const STORAGE_KEY = 'assistai_editor_content';
 
 /**
  * AssistAI Editor — Tiptap-based writing editor with inline completions (A-060 through A-065, A-081).
  *
- * Features:
- * - Rich text editing via Tiptap (StarterKit)
- * - Inline ghost-text completions from RAG pipeline
- * - Tab to accept, Escape/typing to dismiss
- * - Debounced completion requests (750ms)
- * - Editor session tracking
- * - Evidence panel sidebar (A-081, A-082)
- * - Source inspection analytics (A-084)
- * - Spanish (es-ES) copy for all states
- * - Session storage persistence
+ * Orchestrates session creation, editor setup, and layout rendering.
+ * All session logic lives in useEditorSession; all editor wiring in useEditorSetup.
  */
 export function AssistEditor() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [isCreatingSession, setIsCreatingSession] = useState(true);
   const [evidencePanelOpen, setEvidencePanelOpen] = useState(false);
+  const { sessionId, isCreatingSession } = useEditorSession();
+  const { editor, status, error, evidence, clearEvidence, updateEvidence } =
+    useEditorSetup({ sessionId, evidencePanelOpen });
 
-  // Evidence panel state (A-081)
-  const { evidence, updateEvidence, clearEvidence } = useEvidence({
-    isOpen: evidencePanelOpen,
-  });
-
-  // Initialize editor session (A-061)
-  useEffect(() => {
-    let cancelled = false;
-
-    async function createSession() {
-      try {
-        const csrfToken = await getCsrfToken();
-
-        const res = await fetch(`${envConfig.apiUrl}/completions/session`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-csrf-token': csrfToken,
-          },
-          credentials: 'include',
-          body: JSON.stringify({}),
-        });
-
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const data = (await res.json()) as { sessionId: string };
-
-        if (!cancelled) {
-          setSessionId(data.sessionId);
-        }
-      } catch (err) {
-        console.error('[Editor] Failed to create session:', err);
-      } finally {
-        if (!cancelled) {
-          setIsCreatingSession(false);
-        }
-      }
-    }
-
-    void createSession();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Set up Tiptap editor (A-060)
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      Placeholder.configure({
-        placeholder: 'Empezá a escribir tu documento...',
-        emptyEditorClass: 'is-editor-empty',
-      }),
-      GhostText.configure({
-        className: 'ghost-text',
-      }),
-    ],
-    editorProps: {
-      attributes: {
-        class: 'assist-editor-content',
-        spellcheck: 'true',
-        lang: 'es',
-      },
-    },
-    autofocus: 'end',
-    // Load initial content from session storage
-    content: (() => {
-      try {
-        const saved = sessionStorage.getItem(STORAGE_KEY);
-        return saved ?? '';
-      } catch {
-        return '';
-      }
-    })(),
-  });
-
-  // Persist content to session storage on changes
-  useEffect(() => {
-    if (!editor) return;
-
-    const saveContent = () => {
-      try {
-        const html = editor.getHTML();
-        // Always save, even if empty (allows deletion to persist)
-        sessionStorage.setItem(STORAGE_KEY, html);
-      } catch (err) {
-        console.error('[Editor] Failed to save content:', err);
-      }
-    };
-
-    editor.on('update', saveContent);
-
-    return () => {
-      editor.off('update', saveContent);
-    };
-  }, [editor]);
-
-  // Set up completion hook with evidence callback (A-064, A-070, A-080)
-  const { status, error, onTextChange } = useCompletion({
-    editor,
-    sessionId,
-    enabled: !!sessionId,
-    onEvidenceReceived: updateEvidence,
-  });
-
-  // Listen for text changes to trigger completions
-  useEffect(() => {
-    if (!editor) return;
-
-    const handleUpdate = () => {
-      onTextChange();
-      // Clear evidence on new input
-      clearEvidence();
-    };
-
-    editor.on('update', handleUpdate);
-
-    return () => {
-      editor.off('update', handleUpdate);
-    };
-  }, [editor, onTextChange, clearEvidence]);
-
-  // Toggle evidence panel
   const toggleEvidencePanel = useCallback(() => {
     setEvidencePanelOpen((prev) => !prev);
   }, []);

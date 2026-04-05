@@ -36,3 +36,7 @@ docker-compose.override.yml
 # Turborepo / cache
 .turbo/
 .cache/
+
+# Agent tooling
+.atl/
+.atl/skill-registry.md

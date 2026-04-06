@@ -155,11 +155,15 @@ export class SourceService {
   /**
    * Register selected files/folders and create a sync-run record (A-034).
    * Enqueues a discovery job to the worker (A-040).
+   *
+   * @param fileIds - Optional list of specific Drive file IDs to index.
+   *                  When undefined/empty, the worker will do a full scan.
    */
   async registerSelection(
     sourceId: string,
     workspaceId: string,
     rootLocator: string,
+    fileIds?: string[],
   ): Promise<SourceSyncRun> {
     const source = await this.getSource(sourceId, workspaceId);
 
@@ -167,8 +171,10 @@ export class SourceService {
       throw new BadRequestException('Source is not connected');
     }
 
-    // Update root locator with selected path/folder
+    // Persist selection: rootLocator stores the display path/folder name,
+    // selectedFileIds stores the specific Drive file IDs chosen by the user.
     source.rootLocator = rootLocator;
+    source.selectedFileIds = fileIds?.length ? fileIds : null;
     await this.sourceRepo.save(source);
 
     // Create sync run record
@@ -186,6 +192,7 @@ export class SourceService {
         sourceId: source.id,
         workspaceId,
         syncRunId: saved.id,
+        fileIds: fileIds?.length ? fileIds : undefined,
       },
       {
         attempts: INGESTION_RETRY_POLICY.maxAttempts,
@@ -271,6 +278,8 @@ export class SourceService {
         sourceId: source.id,
         workspaceId,
         syncRunId: saved.id,
+        // Re-use the previously saved selection so resync indexes the same files
+        fileIds: source.selectedFileIds?.length ? source.selectedFileIds : undefined,
       },
       {
         attempts: INGESTION_RETRY_POLICY.maxAttempts,

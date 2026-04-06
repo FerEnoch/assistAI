@@ -30,6 +30,9 @@ export class ContentSource {
   @Column({ type: 'varchar', length: 2048, nullable: true, name: 'root_locator' })
   rootLocator?: string | null;
 
+  @Column({ type: 'text', array: true, nullable: true, name: 'selected_file_ids' })
+  selectedFileIds?: string[] | null;
+
   @Column({ type: 'enum', enum: ['connected', 'syncing', 'error', 'disconnected'], default: 'connected' })
   status!: 'connected' | 'syncing' | 'error' | 'disconnected';
 

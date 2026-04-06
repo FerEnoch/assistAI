@@ -39,3 +39,6 @@ docker-compose.override.yml
 
 # Agent tooling
 .atl/
+
+# test files
+test-files/

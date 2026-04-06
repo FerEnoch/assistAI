@@ -22,8 +22,8 @@ describe('PROVIDER_CONFIG', () => {
   });
 
   it('defaults to the OpenRouter free-tier model', () => {
-    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('minimax/minimax-m2.5:free');
-    expect(COMPLETION_CONFIG.defaultModel).toBe('minimax/minimax-m2.5:free');
+    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('qwen/qwen3.6-plus:free');
+    expect(COMPLETION_CONFIG.defaultModel).toBe('qwen/qwen3.6-plus:free');
   });
 });
 

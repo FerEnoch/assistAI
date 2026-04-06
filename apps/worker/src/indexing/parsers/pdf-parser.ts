@@ -9,6 +9,18 @@
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 /**
+ * Sanitize text extracted from a PDF by removing characters that PostgreSQL
+ * rejects in UTF-8 text columns.
+ *
+ * The null byte (\x00 / U+0000) is the most common offender — pdfjs-dist can
+ * produce it from PDFs with empty form fields, corrupted streams, or certain
+ * encodings. PostgreSQL's `text` type explicitly forbids it.
+ */
+export function sanitizePdfText(raw: string): string {
+  return raw.replace(/\x00/g, '');
+}
+
+/**
  * Extract text content from a PDF buffer.
  * Concatenates text from all pages, separated by double newlines.
  */
@@ -46,5 +58,5 @@ export async function parsePdf(buffer: Buffer): Promise<string> {
 
   await doc.destroy();
 
-  return pages.join('\n\n').trim();
+  return sanitizePdfText(pages.join('\n\n').trim());
 }

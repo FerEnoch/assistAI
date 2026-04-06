@@ -67,4 +67,24 @@ describe('Chunker — Spanish text splitting (A-050)', () => {
       expect(chunk.content.length).toBeLessThanOrEqual(1600); // 1500 + tolerance
     }
   });
+
+  // ── Bug 2 regression: null bytes (\x00) must be stripped before chunking ──
+  it('strips null bytes before chunking (defensive sanitization)', async () => {
+    const textWithNulls = 'contenido\x00con\x00bytes\x00nulos';
+    const chunks = await chunkText(textWithNulls);
+
+    expect(chunks.every((c) => !c.content.includes('\x00'))).toBe(true);
+  });
+
+  it('strips null bytes and preserves meaningful content', async () => {
+    const textWithNulls = 'Cláusula 1\x00: El contrato establece obligaciones.';
+    const chunks = await chunkText(textWithNulls);
+
+    expect(chunks[0].content).toBe('Cláusula 1: El contrato establece obligaciones.');
+  });
+
+  it('returns empty array when text is only null bytes', async () => {
+    const chunks = await chunkText('\x00\x00\x00');
+    expect(chunks).toHaveLength(0);
+  });
 });

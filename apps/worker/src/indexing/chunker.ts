@@ -13,13 +13,18 @@ import { CHUNKING_CONFIG } from '@assistai/shared';
  * @returns Array of chunks with content and content hash for dedup
  */
 export async function chunkText(text: string): Promise<Array<{ content: string; contentHash: string }>> {
+  // Defensive sanitization: remove null bytes (\x00) that PostgreSQL rejects.
+  // Primary sanitization happens in each parser; this is a safety net for
+  // any parser that might produce raw null bytes in the future.
+  const sanitized = text.replace(/\x00/g, '');
+
   const splitter = new RecursiveCharacterTextSplitter({
     chunkSize: CHUNKING_CONFIG.chunkSize,
     chunkOverlap: CHUNKING_CONFIG.chunkOverlap,
     separators: [...CHUNKING_CONFIG.separators],
   });
 
-  const chunks = await splitter.splitText(text);
+  const chunks = await splitter.splitText(sanitized);
 
   return chunks.map((content) => ({
     content,

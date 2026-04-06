@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { IndexingStatus } from '../components/IndexingStatus';
 import { DrivePicker } from '../components/DrivePicker';
 import { useSources } from '../hooks/useSources';
+import { getCsrfToken } from '../auth/csrf';
 import envConfig from '../config';
 
 /**
@@ -49,12 +50,16 @@ export function DashboardPage() {
     setShowPicker(false);
 
     try {
+      const csrfToken = await getCsrfToken();
       const res = await fetch(
         `${envConfig.apiUrl}/sources/${connectedSource.id}/select`,
         {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
+          },
           body: JSON.stringify({ fileIds, rootLocator }),
         },
       );

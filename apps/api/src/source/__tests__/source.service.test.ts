@@ -135,34 +135,77 @@ describe('SourceService', () => {
   });
 
   describe('registerSelection', () => {
-    it('should update root locator, create sync run, and enqueue discovery job', async () => {
+    it('should update root locator, persist fileIds, create sync run, and enqueue discovery job', async () => {
       sourceRepo.findOne.mockResolvedValue({
         id: 'src-1',
         workspaceId: 'ws-1',
         status: 'connected',
       });
 
-      const run = await sourceService.registerSelection('src-1', 'ws-1', 'folder:/legal-docs');
+      const fileIds = ['file-aaa', 'file-bbb'];
+      const run = await sourceService.registerSelection('src-1', 'ws-1', 'folder:/legal-docs', fileIds);
 
       expect(sourceRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ rootLocator: 'folder:/legal-docs' }),
+        expect.objectContaining({
+          rootLocator: 'folder:/legal-docs',
+          selectedFileIds: fileIds,
+        }),
       );
       expect(syncRunRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({ sourceId: 'src-1', status: 'running' }),
       );
       expect(run.status).toBe('running');
 
-      // Verify discovery job was enqueued (A-040)
+      // Verify discovery job carries fileIds (A-040)
       expect(discoveryQueue.add).toHaveBeenCalledWith(
         'discovery',
         expect.objectContaining({
           sourceId: 'src-1',
           workspaceId: 'ws-1',
           syncRunId: 'run-uuid',
+          fileIds,
         }),
         expect.objectContaining({
           attempts: 3,
         }),
+      );
+    });
+
+    it('persists selectedFileIds as null and omits fileIds from job when fileIds is empty', async () => {
+      sourceRepo.findOne.mockResolvedValue({
+        id: 'src-1',
+        workspaceId: 'ws-1',
+        status: 'connected',
+      });
+
+      await sourceService.registerSelection('src-1', 'ws-1', 'folder:/docs', []);
+
+      expect(sourceRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ selectedFileIds: null }),
+      );
+      expect(discoveryQueue.add).toHaveBeenCalledWith(
+        'discovery',
+        expect.objectContaining({ fileIds: undefined }),
+        expect.anything(),
+      );
+    });
+
+    it('persists selectedFileIds as null and omits fileIds from job when fileIds is undefined', async () => {
+      sourceRepo.findOne.mockResolvedValue({
+        id: 'src-1',
+        workspaceId: 'ws-1',
+        status: 'connected',
+      });
+
+      await sourceService.registerSelection('src-1', 'ws-1', 'folder:/docs');
+
+      expect(sourceRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ selectedFileIds: null }),
+      );
+      expect(discoveryQueue.add).toHaveBeenCalledWith(
+        'discovery',
+        expect.objectContaining({ fileIds: undefined }),
+        expect.anything(),
       );
     });
 
@@ -213,6 +256,61 @@ describe('SourceService', () => {
     it('should throw when no token stored', () => {
       const source = { googleRefreshTokenEnc: null } as never;
       expect(() => sourceService.getDecryptedRefreshToken(source)).toThrow(BadRequestException);
+    });
+  });
+
+  describe('triggerResync', () => {
+    it('re-uses saved selectedFileIds in the discovery job payload', async () => {
+      sourceRepo.findOne.mockResolvedValue({
+        id: 'src-1',
+        workspaceId: 'ws-1',
+        status: 'connected',
+        googleRefreshTokenEnc: 'enc-token',
+        selectedFileIds: ['file-x', 'file-y'],
+      });
+
+      await sourceService.triggerResync('src-1', 'ws-1');
+
+      expect(discoveryQueue.add).toHaveBeenCalledWith(
+        'discovery',
+        expect.objectContaining({
+          sourceId: 'src-1',
+          fileIds: ['file-x', 'file-y'],
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('omits fileIds from payload when selectedFileIds is null (full resync)', async () => {
+      sourceRepo.findOne.mockResolvedValue({
+        id: 'src-1',
+        workspaceId: 'ws-1',
+        status: 'connected',
+        googleRefreshTokenEnc: 'enc-token',
+        selectedFileIds: null,
+      });
+
+      await sourceService.triggerResync('src-1', 'ws-1');
+
+      expect(discoveryQueue.add).toHaveBeenCalledWith(
+        'discovery',
+        expect.objectContaining({ fileIds: undefined }),
+        expect.anything(),
+      );
+    });
+
+    it('rejects when source is disconnected', async () => {
+      sourceRepo.findOne.mockResolvedValue({
+        id: 'src-1',
+        workspaceId: 'ws-1',
+        status: 'disconnected',
+        googleRefreshTokenEnc: null,
+        selectedFileIds: null,
+      });
+
+      await expect(
+        sourceService.triggerResync('src-1', 'ws-1'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

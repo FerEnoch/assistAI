@@ -97,13 +97,18 @@ export class SourceController {
   @UseGuards(SessionGuard)
   async selectFiles(
     @Param('id') id: string,
-    @Body() body: { rootLocator: string },
+    @Body() body: { rootLocator: string; fileIds?: string[] },
     @Req() req: Request,
   ) {
     if (!body.rootLocator) {
       throw new BadRequestException('rootLocator is required');
     }
-    return this.sourceService.registerSelection(id, getWorkspaceId(req), body.rootLocator);
+    return this.sourceService.registerSelection(
+      id,
+      getWorkspaceId(req),
+      body.rootLocator,
+      body.fileIds,
+    );
   }
 
   /**

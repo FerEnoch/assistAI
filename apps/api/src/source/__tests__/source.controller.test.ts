@@ -156,10 +156,18 @@ describe('SourceController', () => {
   // POST /sources/:id/select
   // ──────────────────────────────────────────────────────────────────────────
   describe('POST /sources/:id/select', () => {
-    it('should register selection and return sync run', async () => {
+    it('should register selection with fileIds and return sync run', async () => {
+      const fileIds = ['file-1', 'file-2'];
+      const result = await controller.selectFiles('src-1', { rootLocator: 'folder:/docs', fileIds }, mockReq() as never);
+
+      expect(sourceService.registerSelection).toHaveBeenCalledWith('src-1', 'ws-1', 'folder:/docs', fileIds);
+      expect(result).toEqual({ id: 'run-1', status: 'running' });
+    });
+
+    it('should register selection without fileIds (full scan)', async () => {
       const result = await controller.selectFiles('src-1', { rootLocator: 'folder:/docs' }, mockReq() as never);
 
-      expect(sourceService.registerSelection).toHaveBeenCalledWith('src-1', 'ws-1', 'folder:/docs');
+      expect(sourceService.registerSelection).toHaveBeenCalledWith('src-1', 'ws-1', 'folder:/docs', undefined);
       expect(result).toEqual({ id: 'run-1', status: 'running' });
     });
 

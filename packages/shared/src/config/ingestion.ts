@@ -48,6 +48,11 @@ export interface DiscoveryJobPayload {
   sourceId: string;
   workspaceId: string;
   syncRunId: string;
+  /**
+   * When present, only these Drive file IDs will be indexed.
+   * Undefined or empty array means "full scan" — index everything accessible.
+   */
+  fileIds?: string[];
 }
 
 export interface ParseJobPayload {

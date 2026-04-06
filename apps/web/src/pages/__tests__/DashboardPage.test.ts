@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Source } from '../../hooks/useSources';
 
 // ──────────────────────────────────────────────
-// T-3.8 a T-3.12: DashboardPage logic tests
+// T-3.8 a T-3.13: DashboardPage logic tests
 //
 // Strategy: test pure functions / logic extracted from DashboardPage.
 // This avoids React Testing Library while verifying all business logic.
@@ -36,11 +36,15 @@ async function selectFiles(
   sourceId: string,
   fileIds: string[],
   rootLocator: string,
+  csrfToken: string,
 ): Promise<SelectResult> {
   const res = await fetch(`${apiUrl}/sources/${sourceId}/select`, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-csrf-token': csrfToken,
+    },
     body: JSON.stringify({ fileIds, rootLocator }),
   });
   if (!res.ok) return { ok: false, error: 'Error al guardar la selección' };
@@ -90,11 +94,11 @@ describe('DashboardPage — handleSelectFiles logic', () => {
     vi.restoreAllMocks();
   });
 
-  // T-3.10: handleSelectFiles llama POST /sources/:id/select
-  it('calls POST /sources/:id/select with correct payload', async () => {
+  // T-3.10: handleSelectFiles llama POST /sources/:id/select con x-csrf-token
+  it('calls POST /sources/:id/select with x-csrf-token header', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
 
-    await selectFiles('http://api', 'src-1', ['file-a', 'file-b'], '["file-a","file-b"]');
+    await selectFiles('http://api', 'src-1', ['file-a', 'file-b'], '["file-a","file-b"]', 'test-csrf-token');
 
     expect(fetch).toHaveBeenCalledOnce();
     expect(fetch).toHaveBeenCalledWith(
@@ -102,17 +106,32 @@ describe('DashboardPage — handleSelectFiles logic', () => {
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': 'test-csrf-token',
+        },
         body: JSON.stringify({ fileIds: ['file-a', 'file-b'], rootLocator: '["file-a","file-b"]' }),
       }),
     );
+  });
+
+  // T-3.13: el header x-csrf-token refleja el token recibido
+  it('forwards the csrfToken into the x-csrf-token header', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
+
+    await selectFiles('http://api', 'src-1', ['x'], 'x', 'my-unique-token-42');
+
+    const [, options] = vi.mocked(fetch).mock.calls[0];
+    expect((options as RequestInit).headers).toMatchObject({
+      'x-csrf-token': 'my-unique-token-42',
+    });
   });
 
   // T-3.11: éxito → ok: true
   it('returns ok: true on successful response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
 
-    const result = await selectFiles('http://api', 'src-1', ['x'], 'x');
+    const result = await selectFiles('http://api', 'src-1', ['x'], 'x', 'tok');
     expect(result).toEqual({ ok: true });
   });
 
@@ -120,7 +139,7 @@ describe('DashboardPage — handleSelectFiles logic', () => {
   it('returns ok: false with Spanish error message on non-OK response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 422 } as Response);
 
-    const result = await selectFiles('http://api', 'src-1', ['x'], 'x');
+    const result = await selectFiles('http://api', 'src-1', ['x'], 'x', 'tok');
     expect(result).toEqual({ ok: false, error: 'Error al guardar la selección' });
   });
 });

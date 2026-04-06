@@ -4,16 +4,16 @@ import type { OAuth2Client } from 'google-auth-library';
 
 /**
  * Google Drive OAuth flow handler.
- * Scopes restricted to exactly drive.file + openid email per backlog §2.5.
+ * Scopes: drive.readonly (read all Drive files) + openid email per MVP §2.5.
  */
 @Injectable()
 export class DriveOAuthService {
   private readonly logger = new Logger(DriveOAuthService.name);
   private readonly oauth2Client: OAuth2Client;
 
-  /** Exactly these scopes, no more — per A-031 */
+  /** Read-only access to all Drive files — drive.file only shows files opened by the app */
   private static readonly SCOPES = [
-    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.readonly',
     'openid',
     'email',
   ];

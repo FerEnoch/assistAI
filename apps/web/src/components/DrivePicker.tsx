@@ -109,7 +109,13 @@ export function DrivePicker({ sourceId, onSelect, onCancel }: DrivePickerProps) 
           ))}
 
           {files.length === 0 && !loading && (
-            <p style={styles.empty}>No se encontraron archivos.</p>
+            <div style={styles.emptyState}>
+              <p style={styles.emptyTitle}>No se encontraron archivos.</p>
+              <p style={styles.emptyHint}>
+                Esto puede pasar si la conexión con Drive está desactualizada.
+                Cerrá este panel y reconectá tu Google Drive desde el dashboard.
+              </p>
+            </div>
           )}
         </div>
 
@@ -223,11 +229,22 @@ const styles: Record<string, React.CSSProperties> = {
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  empty: {
-    color: '#9ca3af',
-    fontSize: '0.875rem',
-    textAlign: 'center',
+  emptyState: {
     padding: '2rem 0',
+    textAlign: 'center' as const,
+  },
+  emptyTitle: {
+    color: '#6b7280',
+    fontSize: '0.875rem',
+    fontWeight: 500,
+    margin: '0 0 0.5rem',
+  },
+  emptyHint: {
+    color: '#9ca3af',
+    fontSize: '0.8rem',
+    lineHeight: 1.5,
+    margin: 0,
+    padding: '0 1rem',
   },
   loadMoreButton: {
     margin: '0.5rem 1.5rem',

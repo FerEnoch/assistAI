@@ -36,7 +36,7 @@ export const FREE_PROVIDERS = [
     apiKeyEnv: 'OPENROUTER_API_KEY',
     baseUrl: 'https://openrouter.ai/api/v1',
     // Free-tier model — no credits consumed. Top-weekly free model on OpenRouter.
-    model: 'meta-llama/llama-3.2-3b-instruct:free',
+    model: 'minimax/minimax-m2.5:free',
   },
   {
     name: 'cerebras',

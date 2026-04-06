@@ -22,8 +22,8 @@ describe('PROVIDER_CONFIG', () => {
   });
 
   it('defaults to the OpenRouter free-tier model', () => {
-    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('qwen/qwen3.6-plus:free');
-    expect(COMPLETION_CONFIG.defaultModel).toBe('qwen/qwen3.6-plus:free');
+    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('openai/gpt-oss-120b:free');
+    expect(COMPLETION_CONFIG.defaultModel).toBe('openai/gpt-oss-120b:free');
   });
 });
 

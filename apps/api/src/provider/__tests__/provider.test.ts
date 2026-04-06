@@ -21,9 +21,9 @@ describe('PROVIDER_CONFIG', () => {
     expect(PROVIDER_CONFIG.openRouterBaseUrl).toBe('https://openrouter.ai/api/v1');
   });
 
-  it('defaults to openai/gpt-4o-mini', () => {
-    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('openai/gpt-4o-mini');
-    expect(COMPLETION_CONFIG.defaultModel).toBe('openai/gpt-4o-mini');
+  it('defaults to the OpenRouter free-tier model', () => {
+    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('minimax/minimax-m2.5:free');
+    expect(COMPLETION_CONFIG.defaultModel).toBe('minimax/minimax-m2.5:free');
   });
 });
 

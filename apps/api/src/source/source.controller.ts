@@ -65,7 +65,8 @@ export class SourceController {
     }
 
     await this.sourceService.handleCallback(code, state, req.sessionID);
-    res.redirect('/dashboard?source=connected');
+    const webUrl = process.env.WEB_URL ?? 'http://localhost:5173';
+    res.redirect(`${webUrl}/dashboard?source=connected`);
   }
 
   /**

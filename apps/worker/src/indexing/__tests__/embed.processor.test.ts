@@ -97,7 +97,7 @@ describe('EmbedProcessor', () => {
     });
   });
 
-  // Scenario 3: Embedding count mismatch — throws before DB write
+  // Scenario 3: Embedding count mismatch — fails before transaction and marks doc failed
   describe('embedding count mismatch', () => {
     beforeEach(() => {
       mockDataSource.getRepository.mockReturnValue({
@@ -116,9 +116,12 @@ describe('EmbedProcessor', () => {
       expect(mockDataSource.transaction).not.toHaveBeenCalled();
     });
 
-    it('does not mark document as failed (bypasses catch block)', async () => {
+    it('marks document as failed with EMBEDDING_ERROR', async () => {
       await processor.process(fakeJob()).catch(() => {});
-      expect(mockDataSource.query).not.toHaveBeenCalled();
+      expect(mockDataSource.query).toHaveBeenCalledWith(
+        expect.stringContaining("ingest_status = 'failed'"),
+        ['EMBEDDING_ERROR: Embedding count mismatch: got 1, expected 2', 'doc-1'],
+      );
     });
   });
 

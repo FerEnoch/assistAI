@@ -55,21 +55,20 @@ export class EmbedProcessor extends WorkerHost {
       return { embedded: 0 };
     }
 
-    // Extract texts for embedding
-    const texts = chunks.map((c) => c.content);
-
-    // Generate embeddings via provider (A-051)
-    const embeddings = await this.embeddingProvider.embedBatch(texts);
-
-    // Mismatch guard — programming error, throw BEFORE any DB write
-    // Intentionally outside try/catch so it does NOT mark document as failed
-    if (embeddings.length !== chunks.length) {
-      throw new Error(
-        `Embedding count mismatch: got ${embeddings.length}, expected ${chunks.length}`,
-      );
-    }
-
     try {
+      // Extract texts for embedding
+      const texts = chunks.map((c) => c.content);
+
+      // Generate embeddings via provider (A-051)
+      const embeddings = await this.embeddingProvider.embedBatch(texts);
+
+      // Guard against provider/data mismatches before DB writes
+      if (embeddings.length !== chunks.length) {
+        throw new Error(
+          `Embedding count mismatch: got ${embeddings.length}, expected ${chunks.length}`,
+        );
+      }
+
       // Write embeddings to DB using raw SQL (pgvector vector type)
       await this.dataSource.transaction(async (manager) => {
         const chunkIds = chunks.map((c) => c.id);

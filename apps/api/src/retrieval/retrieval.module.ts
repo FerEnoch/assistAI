@@ -23,7 +23,8 @@ const logger = new Logger('RetrievalModule');
 const queryEmbeddingFactory = {
   provide: QUERY_EMBEDDING,
   useFactory: () => {
-    const name = (process.env.EMBEDDING_PROVIDER_NAME ?? 'openai').toLowerCase();
+    // Default to openrouter to match worker (free embeddings)
+    const name = (process.env.EMBEDDING_PROVIDER_NAME ?? 'openrouter').toLowerCase();
 
     switch (name) {
       case 'openrouter':

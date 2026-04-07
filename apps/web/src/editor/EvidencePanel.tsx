@@ -24,16 +24,19 @@ interface EvidencePanelProps {
 }
 
 export function EvidencePanel({ isOpen, onToggle, isGrounded, hits }: EvidencePanelProps) {
+  // Botón siempre visible — el usuario debe poder ver qué fuentes se usaron (o que no hay)
+  const hasHits = hits.length > 0;
+
   if (!isOpen) {
     return (
       <button
         style={styles.toggleButton}
         onClick={onToggle}
-        title="Mostrar fuentes de evidencia"
+        title={hasHits ? `Ver fuentes de evidencia (${hits.length})` : 'Ver fuentes de evidencia'}
         aria-label="Abrir panel de evidencia"
       >
         <span style={styles.toggleIcon}>📚</span>
-        {hits.length > 0 && (
+        {hasHits && (
           <span style={styles.badge}>{hits.length}</span>
         )}
       </button>

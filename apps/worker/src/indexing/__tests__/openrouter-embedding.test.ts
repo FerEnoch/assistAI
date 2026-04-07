@@ -86,6 +86,7 @@ describe('OpenRouterEmbeddingProvider', () => {
     expect(mockCreate).toHaveBeenCalledWith({
       model: 'nvidia/llama-nemotron-embed-vl-1b-v2:free',
       input: ['hello', 'world'],
+      encoding_format: 'float',
     });
 
     expect(result).toHaveLength(2);

@@ -125,6 +125,9 @@ export class DiscoveryProcessor extends WorkerHost {
    * Selective discovery — fetch only the specific file IDs provided by the user.
    * Uses drive.files.get per file instead of listing the entire Drive.
    * Skips files that are unsupported MIME types or return errors (404, etc.).
+   *
+   * When a folder ID is encountered, it is expanded recursively via
+   * `discoverFromFolder` so that all supported files inside are enqueued.
    */
   private async discoverByFileIds(
     drive: ReturnType<typeof google.drive>,
@@ -147,6 +150,14 @@ export class DiscoveryProcessor extends WorkerHost {
         const file = res.data;
         if (!file.id || !file.mimeType || !file.name) continue;
 
+        // If the user selected a folder, expand its contents recursively
+        if (file.mimeType === 'application/vnd.google-apps.folder') {
+          this.logger.log(`[Discovery] Expanding folder: ${file.name} (${file.id})`);
+          const enqueued = await this.discoverFromFolder(drive, source, workspaceId, syncRunId, file.id);
+          totalEnqueued += enqueued;
+          continue;
+        }
+
         if (!isSupportedMimeType(file.mimeType)) {
           this.logger.debug(`[Discovery] Skipping unsupported MIME: ${file.mimeType} — ${file.name}`);
           continue;
@@ -163,6 +174,55 @@ export class DiscoveryProcessor extends WorkerHost {
     }
 
     return { discovered: fileIds.length, enqueued: totalEnqueued };
+  }
+
+  /**
+   * Recursively list and enqueue all supported files inside a Drive folder.
+   * Handles pagination and nested sub-folders.
+   *
+   * @returns The number of files enqueued from this folder and its descendants.
+   */
+  private async discoverFromFolder(
+    drive: ReturnType<typeof google.drive>,
+    source: ContentSource,
+    workspaceId: string,
+    syncRunId: string,
+    folderId: string,
+  ): Promise<number> {
+    let enqueued = 0;
+    let pageToken: string | undefined;
+
+    do {
+      const res = await drive.files.list({
+        pageSize: 100,
+        pageToken,
+        q: `'${folderId}' in parents and trashed = false`,
+        fields: 'nextPageToken, files(id, name, mimeType, size)',
+      });
+
+      for (const file of res.data.files ?? []) {
+        if (!file.id || !file.mimeType || !file.name) continue;
+
+        // Recurse into sub-folders
+        if (file.mimeType === 'application/vnd.google-apps.folder') {
+          enqueued += await this.discoverFromFolder(drive, source, workspaceId, syncRunId, file.id);
+          continue;
+        }
+
+        if (!isSupportedMimeType(file.mimeType)) {
+          this.logger.debug(`[Discovery] Skipping unsupported MIME: ${file.mimeType} — ${file.name}`);
+          continue;
+        }
+
+        const sizeBytes = parseInt(file.size ?? '0', 10);
+        await this.upsertAndEnqueue(source, workspaceId, syncRunId, file.id, file.name, file.mimeType, sizeBytes);
+        enqueued++;
+      }
+
+      pageToken = res.data.nextPageToken ?? undefined;
+    } while (pageToken);
+
+    return enqueued;
   }
 
   /**

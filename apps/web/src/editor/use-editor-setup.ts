@@ -117,13 +117,13 @@ export function useEditorSetup({ sessionId, evidencePanelOpen }: EditorSetupOpti
   }, [sendFeedback]);
 
   // ── Listen for text changes to trigger completions ──
+  // IMPORTANT: don't clear evidence here - it gets cleared in use-completion.ts
+  // when a new completion request starts, preserving evidence until user acts
   useEffect(() => {
     if (!editor) return;
 
     const handleUpdate = () => {
       onTextChange();
-      // Clear evidence on new input
-      clearEvidence();
     };
 
     editor.on('update', handleUpdate);
@@ -131,7 +131,7 @@ export function useEditorSetup({ sessionId, evidencePanelOpen }: EditorSetupOpti
     return () => {
       editor.off('update', handleUpdate);
     };
-  }, [editor, onTextChange, clearEvidence]);
+  }, [editor, onTextChange]);
 
   return {
     editor,

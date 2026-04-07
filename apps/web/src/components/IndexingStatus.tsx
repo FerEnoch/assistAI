@@ -195,7 +195,7 @@ export function IndexingStatus() {
               </button>
             </div>
             {doc.ingestStatus === 'failed' && doc.errorReason && (
-              <p style={styles.errorDetail}>{doc.errorReason}</p>
+              <p style={styles.errorDetail}>{friendlyError(doc.errorReason)}</p>
             )}
             {doc.ingestStatus === 'indexed' && doc.indexedAt && (
               <p style={styles.indexedDate}>
@@ -212,6 +212,19 @@ export function IndexingStatus() {
       </button>
     </div>
   );
+}
+
+/**
+ * Converts raw internal error reasons (e.g. "EMBEDDING_ERROR: ...") into
+ * user-friendly messages in Rioplatense Spanish.
+ */
+function friendlyError(raw: string | null): string {
+  if (!raw) return 'Error desconocido al procesar el documento.';
+  if (raw.startsWith('EMBEDDING_ERROR:')) return 'No se pudo generar el índice del documento. Intentá reconectando la fuente.';
+  if (raw.startsWith('EMBED_NO_CHUNKS:')) return 'El documento no tiene contenido legible para indexar.';
+  if (raw.startsWith('PARSE_ERROR:')) return 'No se pudo leer el archivo. Verificá que no esté dañado.';
+  if (raw.startsWith('FILE_REMOVED:')) return 'El archivo fue eliminado o movido a la papelera en Google Drive.';
+  return 'Error al procesar el documento.';
 }
 
 function StatusBadge({ label, count, color }: { label: string; count: number; color: string }) {

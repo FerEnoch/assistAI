@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
+import { EMBEDDING_CONFIG } from '@assistai/shared';
 import type { QueryEmbeddingPort } from './query-embedding.token';
 
 /**
@@ -12,8 +13,9 @@ import type { QueryEmbeddingPort } from './query-embedding.token';
  * `QueryEmbeddingPort` interface with identical output shape (1024d vectors).
  *
  * Unlike the worker's batch-oriented provider, this only embeds single queries.
- * The free model returns 1024-dimensional embeddings natively (no `dimensions`
- * param needed).
+ * The model returns 2048-dimensional embeddings. We project them to
+ * 1024 dimensions to stay compatible with pgvector HNSW limits and
+ * the existing `document_chunks.embedding vector(1024)` schema.
  */
 @Injectable()
 export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
@@ -22,7 +24,8 @@ export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
   private readonly isConfigured: boolean;
 
   static readonly MODEL = 'nvidia/llama-nemotron-embed-vl-1b-v2:free';
-  static readonly DIMENSIONS = 1024;
+  static readonly NATIVE_DIMENSIONS = 2048;
+  static readonly DIMENSIONS = EMBEDDING_CONFIG.dimensions;
 
   private isPlaceholderKey(value: string | undefined): boolean {
     if (!value) return true;
@@ -49,6 +52,15 @@ export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
       apiKey: apiKey ?? '',
       baseURL: 'https://openrouter.ai/api/v1',
     });
+
+    if (this.isConfigured) {
+      this.logger.warn(
+        `[OpenRouter] ⚠ Embedding projection active: ` +
+        `${QueryOpenRouterEmbeddingService.MODEL} produces ${QueryOpenRouterEmbeddingService.NATIVE_DIMENSIONS}d natively ` +
+        `but pgvector HNSW limit is 2000 — truncating to ${QueryOpenRouterEmbeddingService.DIMENSIONS}d. ` +
+        `Index and query paths MUST use the same projection.`,
+      );
+    }
   }
 
   /**
@@ -69,18 +81,33 @@ export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
       const response = await this.client.embeddings.create({
         model: QueryOpenRouterEmbeddingService.MODEL,
         input: text,
+        encoding_format: 'float',
       });
 
-      const embedding = response.data[0].embedding;
-
-      if (embedding.length !== QueryOpenRouterEmbeddingService.DIMENSIONS) {
-        this.logger.error(
-          `[Embedding] Dimension mismatch: expected ${QueryOpenRouterEmbeddingService.DIMENSIONS}, got ${embedding.length}`,
+      if (!Array.isArray((response as { data?: unknown[] }).data)) {
+        const apiMessage = (response as { error?: { message?: string } }).error?.message;
+        this.logger.warn(
+          `[Embedding] Invalid OpenRouter response: ${apiMessage ?? 'missing data array'}`,
         );
         return null;
       }
 
-      return embedding;
+      const embedding = response.data[0].embedding;
+
+      if (embedding.length < QueryOpenRouterEmbeddingService.DIMENSIONS) {
+        this.logger.error(
+          `[Embedding] Dimension mismatch: expected at least ${QueryOpenRouterEmbeddingService.DIMENSIONS}, got ${embedding.length}`,
+        );
+        return null;
+      }
+
+      if (embedding.length !== QueryOpenRouterEmbeddingService.NATIVE_DIMENSIONS) {
+        this.logger.warn(
+          `[Embedding] Unexpected native dimension from model: got ${embedding.length}, expected ${QueryOpenRouterEmbeddingService.NATIVE_DIMENSIONS}`,
+        );
+      }
+
+      return embedding.slice(0, QueryOpenRouterEmbeddingService.DIMENSIONS);
     } catch (err) {
       this.logger.warn(
         `[Embedding] Generation failed: ${err instanceof Error ? err.message : String(err)}`,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import envConfig from '../config';
+import { getCsrfToken } from '../auth/csrf';
 
 /**
  * A single retrieval hit from the completion pipeline.
@@ -93,9 +94,13 @@ export function useEvidence({ isOpen, onPanelOpen }: UseEvidenceOptions) {
  */
 async function trackSourceInspection(completionId: string): Promise<void> {
   try {
+    const csrfToken = await getCsrfToken();
     await fetch(`${envConfig.apiUrl}/analytics/events`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-csrf-token': csrfToken,
+      },
       credentials: 'include',
       body: JSON.stringify({
         eventType: 'source_inspection',

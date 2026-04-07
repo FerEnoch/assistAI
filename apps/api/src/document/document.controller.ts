@@ -1,6 +1,8 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Query,
   Req,
@@ -70,5 +72,17 @@ export class DocumentController {
   @UseGuards(SessionGuard)
   async getDocument(@Param('id') id: string, @Req() req: Request) {
     return this.documentService.getDocument(id, getWorkspaceId(req));
+  }
+
+  /**
+   * DELETE /documents/:id
+   * Delete a document and its chunks (via CASCADE) for the workspace.
+   * Works regardless of ingest status — queued, processing, indexed, or failed.
+   */
+  @Delete(':id')
+  @HttpCode(200)
+  @UseGuards(SessionGuard)
+  async deleteDocument(@Param('id') id: string, @Req() req: Request) {
+    return this.documentService.deleteDocument(id, getWorkspaceId(req));
   }
 }

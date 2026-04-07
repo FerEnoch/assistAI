@@ -10,6 +10,7 @@ describe('DocumentService (A-045, A-046)', () => {
     documentRepo = {
       find: vi.fn().mockResolvedValue([]),
       findOne: vi.fn(),
+      remove: vi.fn().mockResolvedValue(undefined),
       createQueryBuilder: vi.fn(),
     };
 
@@ -60,6 +61,38 @@ describe('DocumentService (A-045, A-046)', () => {
       await expect(service.getDocument('non-existent', 'ws-1')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('deleteDocument', () => {
+    it('should delete a document and return { id, deleted: true }', async () => {
+      const doc = { id: 'doc-1', workspaceId: 'ws-1', ingestStatus: 'indexed' };
+      documentRepo.findOne.mockResolvedValue(doc);
+
+      const result = await service.deleteDocument('doc-1', 'ws-1');
+
+      expect(documentRepo.remove).toHaveBeenCalledWith(doc);
+      expect(result).toEqual({ id: 'doc-1', deleted: true });
+    });
+
+    it('should throw NotFoundException when document does not exist', async () => {
+      documentRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.deleteDocument('non-existent', 'ws-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(documentRepo.remove).not.toHaveBeenCalled();
+    });
+
+    it('should delete a document regardless of ingest status', async () => {
+      for (const status of ['queued', 'processing', 'failed'] as const) {
+        const doc = { id: `doc-${status}`, workspaceId: 'ws-1', ingestStatus: status };
+        documentRepo.findOne.mockResolvedValue(doc);
+        documentRepo.remove.mockResolvedValue(undefined);
+
+        const result = await service.deleteDocument(doc.id, 'ws-1');
+        expect(result.deleted).toBe(true);
+      }
     });
   });
 

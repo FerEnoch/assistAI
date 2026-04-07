@@ -1,11 +1,12 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '@assistai/shared';
 import type { EmbedJobPayload } from '@assistai/shared';
 import { DocumentChunk } from '@assistai/entities';
-import { OpenAIEmbeddingProvider } from './embedding/openai-embedding.provider';
+import { EMBEDDING_PROVIDER } from './embedding/embedding-provider.token';
+import type { EmbeddingProvider } from './embedding/embedding-provider.interface';
 
 /**
  * Embed processor (A-051).
@@ -24,7 +25,7 @@ export class EmbedProcessor extends WorkerHost {
 
   constructor(
     private readonly dataSource: DataSource,
-    private readonly embeddingProvider: OpenAIEmbeddingProvider,
+    @Inject(EMBEDDING_PROVIDER) private readonly embeddingProvider: EmbeddingProvider,
   ) {
     super();
   }
@@ -43,7 +44,14 @@ export class EmbedProcessor extends WorkerHost {
       });
 
     if (chunks.length === 0) {
-      this.logger.warn(`[Embed] No chunks found for doc=${documentId}`);
+      this.logger.warn(`[Embed] No chunks found for doc=${documentId} — marking as failed`);
+      await this.dataSource.query(
+        `UPDATE documents
+         SET ingest_status = 'failed',
+             error_reason = 'EMBED_NO_CHUNKS: Document was parsed but produced no chunks'
+         WHERE id = $1 AND workspace_id = $2`,
+        [documentId, workspaceId],
+      );
       return { embedded: 0 };
     }
 

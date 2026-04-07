@@ -5,4 +5,4 @@ export { EmbedProcessor } from './embed.processor';
 export { parseDocument } from './document-parser';
 export { chunkText } from './chunker';
 export type { EmbeddingProvider } from './embedding';
-export { OpenAIEmbeddingProvider } from './embedding';
+export { EMBEDDING_PROVIDER, OpenAIEmbeddingProvider, OpenRouterEmbeddingProvider } from './embedding';

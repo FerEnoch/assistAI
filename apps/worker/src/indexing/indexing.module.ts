@@ -12,7 +12,30 @@ import {
 import { DiscoveryProcessor } from './discovery.processor';
 import { ParseProcessor } from './parse.processor';
 import { EmbedProcessor } from './embed.processor';
+import { EMBEDDING_PROVIDER } from './embedding/embedding-provider.token';
 import { OpenAIEmbeddingProvider } from './embedding/openai-embedding.provider';
+import { OpenRouterEmbeddingProvider } from './embedding/openrouter-embedding.provider';
+
+/**
+ * Resolves the concrete embedding provider based on
+ * the `EMBEDDING_PROVIDER_NAME` env var.
+ *
+ * Defaults to `openai` if the variable is not set.
+ */
+const embeddingProviderFactory = {
+  provide: EMBEDDING_PROVIDER,
+  useFactory: () => {
+    const name = (process.env.EMBEDDING_PROVIDER_NAME ?? 'openai').toLowerCase();
+
+    switch (name) {
+      case 'openrouter':
+        return new OpenRouterEmbeddingProvider();
+      case 'openai':
+      default:
+        return new OpenAIEmbeddingProvider();
+    }
+  },
+};
 
 @Module({
   imports: [
@@ -63,11 +86,11 @@ import { OpenAIEmbeddingProvider } from './embedding/openai-embedding.provider';
     ),
   ],
   providers: [
-    OpenAIEmbeddingProvider,
+    embeddingProviderFactory,
     DiscoveryProcessor,
     ParseProcessor,
     EmbedProcessor,
   ],
-  exports: [OpenAIEmbeddingProvider],
+  exports: [EMBEDDING_PROVIDER],
 })
 export class IndexingModule {}

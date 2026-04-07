@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import envConfig from '../config';
+import { getCsrfToken } from '../auth/csrf';
 
 interface StatusCounts {
   queued: number;
@@ -24,6 +25,7 @@ interface DocumentItem {
  * Displays:
  * - Summary counts by status (queued, processing, indexed, failed)
  * - Individual document status with error details
+ * - Delete button per document (any status)
  * - Auto-refreshes every 10 seconds while documents are being processed
  *
  * All copy in Rioplatense Spanish per A-024.
@@ -34,6 +36,7 @@ export function IndexingStatus() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
     try {
@@ -63,6 +66,33 @@ export function IndexingStatus() {
       setIsLoading(false);
     }
   }, [filter]);
+
+  const handleDelete = useCallback(async (docId: string) => {
+    setDeletingIds((prev) => new Set(prev).add(docId));
+    try {
+      const csrfToken = await getCsrfToken();
+      const res = await fetch(`${envConfig.apiUrl}/documents/${docId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'x-csrf-token': csrfToken },
+      });
+
+      if (!res.ok) throw new Error('Error al eliminar el documento');
+
+      // Optimistic removal from local state
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+      // Refresh counts
+      void fetchData();
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  }, [fetchData]);
 
   useEffect(() => {
     void fetchData();
@@ -146,9 +176,23 @@ export function IndexingStatus() {
               <span style={styles.docTitle}>{doc.title ?? 'Sin título'}</span>
               <span style={styles.docMime}>{MIME_LABELS[doc.mimeType ?? ''] ?? doc.mimeType}</span>
             </div>
-            <div style={styles.docStatus}>
-              <span style={{ ...styles.statusDot, backgroundColor: STATUS_COLORS[doc.ingestStatus] }} />
-              <span style={styles.statusText}>{STATUS_LABELS[doc.ingestStatus]}</span>
+            <div style={styles.docStatusRow}>
+              <div style={styles.docStatus}>
+                <span style={{ ...styles.statusDot, backgroundColor: STATUS_COLORS[doc.ingestStatus] }} />
+                <span style={styles.statusText}>{STATUS_LABELS[doc.ingestStatus]}</span>
+              </div>
+              <button
+                style={{
+                  ...styles.deleteButton,
+                  ...(deletingIds.has(doc.id) ? styles.deleteButtonDisabled : {}),
+                }}
+                onClick={() => void handleDelete(doc.id)}
+                disabled={deletingIds.has(doc.id)}
+                title="Eliminar documento"
+                aria-label={`Eliminar ${doc.title ?? 'documento'}`}
+              >
+                {deletingIds.has(doc.id) ? '...' : '✕'}
+              </button>
             </div>
             {doc.ingestStatus === 'failed' && doc.errorReason && (
               <p style={styles.errorDetail}>{doc.errorReason}</p>
@@ -312,6 +356,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#9ca3af',
     textTransform: 'uppercase' as const,
   },
+  docStatusRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   docStatus: {
     display: 'flex',
     alignItems: 'center',
@@ -326,6 +375,21 @@ const styles: Record<string, React.CSSProperties> = {
   statusText: {
     fontSize: '0.8rem',
     color: '#6b7280',
+  },
+  deleteButton: {
+    padding: '0.2rem 0.5rem',
+    fontSize: '0.75rem',
+    color: '#9ca3af',
+    backgroundColor: 'transparent',
+    border: '1px solid #e5e7eb',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    lineHeight: 1,
+    transition: 'color 0.15s, border-color 0.15s',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.4,
+    cursor: 'not-allowed',
   },
   errorDetail: {
     fontSize: '0.75rem',

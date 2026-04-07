@@ -4,6 +4,11 @@ import { Repository } from 'typeorm';
 import { Document } from '@assistai/entities';
 import type { IngestStatus } from '@assistai/entities';
 
+export interface DeleteDocumentResult {
+  id: string;
+  deleted: true;
+}
+
 /**
  * Document service — manages document records and their indexing status (A-045, A-046).
  */
@@ -47,6 +52,29 @@ export class DocumentService {
     }
 
     return doc;
+  }
+
+  /**
+   * Delete a document by ID, scoped to workspace.
+   * Chunks are deleted automatically via ON DELETE CASCADE.
+   */
+  async deleteDocument(
+    documentId: string,
+    workspaceId: string,
+  ): Promise<DeleteDocumentResult> {
+    const doc = await this.documentRepo.findOne({
+      where: { id: documentId, workspaceId },
+    });
+
+    if (!doc) {
+      throw new NotFoundException('Document not found');
+    }
+
+    await this.documentRepo.remove(doc);
+
+    this.logger.log(`[Document] Deleted doc=${documentId} workspace=${workspaceId}`);
+
+    return { id: documentId, deleted: true };
   }
 
   /**

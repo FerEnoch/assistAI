@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import { EMBEDDING_CONFIG } from '@assistai/shared';
+import type { QueryEmbeddingPort } from './query-embedding.token';
 
 /**
  * Query embedding service for the API — generates embeddings for retrieval queries (A-053).
@@ -12,7 +13,7 @@ import { EMBEDDING_CONFIG } from '@assistai/shared';
  * Unlike the worker's batch-oriented provider, this only embeds single queries.
  */
 @Injectable()
-export class QueryEmbeddingService {
+export class QueryEmbeddingService implements QueryEmbeddingPort {
   private readonly logger = new Logger(QueryEmbeddingService.name);
   private readonly client: OpenAI;
   private readonly isEmbeddingsConfigured: boolean;
@@ -49,7 +50,7 @@ export class QueryEmbeddingService {
    */
   async embed(text: string): Promise<number[] | null> {
     if (!this.isEmbeddingsConfigured) {
-      this.logger.debug('[Embedding] Skipping — OPENAI_API_KEY not configured with a real value');
+      this.logger.warn('[Embedding] Skipping query embed — OPENAI_API_KEY not configured. RAG retrieval will be disabled.');
       return null;
     }
 

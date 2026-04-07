@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Observable, Subject } from 'rxjs';
@@ -14,7 +14,7 @@ import {
 } from '@assistai/shared';
 import type { CompletionRequestPayload, RetrievalHit } from '@assistai/shared';
 import { RetrievalService } from '../retrieval/retrieval.service';
-import { QueryEmbeddingService } from '../retrieval/query-embedding.service';
+import { QUERY_EMBEDDING, type QueryEmbeddingPort } from '../retrieval/query-embedding.token';
 import { PromptAssembler } from './prompt-assembler';
 import { ProviderRouter } from '../provider/provider-router.service';
 import { mapToErrorCode, getErrorMessage, ErrorCode } from '../errors';
@@ -50,7 +50,7 @@ export class CompletionService {
     private readonly hitRepo: Repository<CompletionRetrievalHit>,
     private readonly dataSource: DataSource,
     private readonly retrievalService: RetrievalService,
-    private readonly queryEmbedding: QueryEmbeddingService,
+    @Inject(QUERY_EMBEDDING) private readonly queryEmbedding: QueryEmbeddingPort,
     private readonly promptAssembler: PromptAssembler,
     private readonly providerRouter: ProviderRouter,
   ) {}
@@ -183,7 +183,9 @@ export class CompletionService {
         const retrievalStart = Date.now();
 
         try {
-          const queryText = payload.prefix.slice(-200).trim();
+          // Use last 500 chars for query embedding — captures enough local context
+          // without being too narrow (200 was too short for topic-level retrieval).
+          const queryText = payload.prefix.slice(-500).trim();
           const queryEmbedding = await this.queryEmbedding.embed(queryText);
 
           if (queryEmbedding) {
@@ -191,6 +193,8 @@ export class CompletionService {
               workspaceId,
               queryEmbedding,
             );
+          } else {
+            this.logger.warn('[Completion] RAG retrieval skipped — no query embedding (check OPENAI_API_KEY in API env)');
           }
         } catch (err) {
           // Retrieval failure is non-fatal — continue without evidence
@@ -202,19 +206,10 @@ export class CompletionService {
         retrievalLatencyMs = Date.now() - retrievalStart;
       }
 
-      // Step 3: Weak-grounding suppression (A-083)
-      // If top similarity < 0.72, strip retrieval context
+      // Step 3: Grounding flag — retrieval.service already applied the similarity
+      // threshold in SQL, so any chunk that arrived here passed the bar.
       if (evidence.length > 0) {
-        const topSimilarity = evidence[0].similarity;
-        if (topSimilarity < RETRIEVAL_CONFIG.similarityThreshold) {
-          this.logger.debug(
-            `[Completion] Suppressing weak evidence: topSimilarity=${topSimilarity.toFixed(4)} < threshold=${RETRIEVAL_CONFIG.similarityThreshold}`,
-          );
-          evidence = [];
-          isGrounded = false;
-        } else {
-          isGrounded = true;
-        }
+        isGrounded = true;
       }
 
       // Emit retrieval metadata

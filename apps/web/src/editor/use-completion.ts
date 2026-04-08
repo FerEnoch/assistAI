@@ -22,6 +22,8 @@ interface UseCompletionOptions {
     completionId: string;
     isGrounded: boolean;
     retrievalHits: EvidenceHit[];
+    structuralMatch?: boolean;
+    docType?: string | null;
   }) => void;
 }
 
@@ -175,6 +177,7 @@ export function useCompletion({
       const decoder = new TextDecoder();
       let accumulated = '';
       let completionId: string | null = null;
+      let docType: string | null = null;
 
       setState({ status: 'streaming', completionId: null, error: null });
 
@@ -224,12 +227,22 @@ export function useCompletion({
           setState((prev) => ({ ...prev, completionId }));
         }
 
-        if (eventType === 'done' && Array.isArray(parsed.retrievalHits)) {
-          onEvidenceReceived?.({
-            completionId: typeof parsed.completionId === 'string' ? parsed.completionId : completionId ?? '',
-            isGrounded: Boolean(parsed.isGrounded),
-            retrievalHits: parsed.retrievalHits as EvidenceHit[],
-          });
+        if (eventType === 'meta') {
+          if (typeof parsed.docType === 'string' || parsed.docType === null) {
+            docType = parsed.docType as string | null;
+          }
+        }
+
+        if (eventType === 'done') {
+          if (Array.isArray(parsed.retrievalHits)) {
+            onEvidenceReceived?.({
+              completionId: typeof parsed.completionId === 'string' ? parsed.completionId : completionId ?? '',
+              isGrounded: Boolean(parsed.isGrounded),
+              retrievalHits: parsed.retrievalHits as EvidenceHit[],
+              structuralMatch: Boolean(parsed.structuralMatch),
+              docType,
+            });
+          }
           setState((prev) => ({ ...prev, status: 'idle' }));
         }
 

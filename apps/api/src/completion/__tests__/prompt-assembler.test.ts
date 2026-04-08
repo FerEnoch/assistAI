@@ -106,4 +106,85 @@ describe('PromptAssembler', () => {
       expect(result.user).toBe(shortPrefix);
     });
   });
+
+  describe('detectDocumentType', () => {
+    // ─── Task 4.1: CONTRATO detection ──────────────────────────────────────
+    it('returns CONTRATO when prefix contains "CONTRATO DE"', () => {
+      expect(assembler.detectDocumentType('CONTRATO DE LOCACIÓN entre partes')).toBe('CONTRATO');
+    });
+
+    it('returns CONTRATO when prefix contains "las partes acuerdan"', () => {
+      expect(assembler.detectDocumentType('En la ciudad de Buenos Aires, las partes acuerdan lo siguiente')).toBe('CONTRATO');
+    });
+
+    // ─── Task 4.2: DEMANDA detection ──────────────────────────────────────
+    it('returns DEMANDA when prefix contains "demanda"', () => {
+      expect(assembler.detectDocumentType('Vengo a interponer formal demanda contra el Estado')).toBe('DEMANDA');
+    });
+
+    it('returns DEMANDA when prefix contains "actor"', () => {
+      expect(assembler.detectDocumentType('El actor solicita se haga lugar a la pretensión')).toBe('DEMANDA');
+    });
+
+    it('returns DEMANDA when prefix contains "demandado"', () => {
+      expect(assembler.detectDocumentType('Cítese al demandado por el plazo de ley')).toBe('DEMANDA');
+    });
+
+    // ─── Task 4.3: ACTA detection ─────────────────────────────────────────
+    it('returns ACTA when prefix contains "acta"', () => {
+      expect(assembler.detectDocumentType('Se labra la presente acta a los efectos de dejar constancia')).toBe('ACTA');
+    });
+
+    it('returns ACTA when prefix contains "reunión"', () => {
+      expect(assembler.detectDocumentType('En la reunión del directorio celebrada en fecha')).toBe('ACTA');
+    });
+
+    it('returns ACTA when prefix contains "sesión"', () => {
+      expect(assembler.detectDocumentType('Abierta la sesión ordinaria del Honorable Concejo')).toBe('ACTA');
+    });
+
+    // ─── Task 4.4: PROVIDENCIA detection ──────────────────────────────────
+    it('returns PROVIDENCIA when prefix contains "providencia"', () => {
+      expect(assembler.detectDocumentType('Se dicta la presente providencia a fin de ordenar')).toBe('PROVIDENCIA');
+    });
+
+    it('returns PROVIDENCIA when prefix contains "juzgado"', () => {
+      expect(assembler.detectDocumentType('El juzgado civil y comercial número 5 dispone')).toBe('PROVIDENCIA');
+    });
+
+    it('returns PROVIDENCIA when prefix contains "autos y vistos"', () => {
+      expect(assembler.detectDocumentType('Autos y vistos: para resolver en la presente causa')).toBe('PROVIDENCIA');
+    });
+
+    // ─── Task 4.5: RESOLUCIÓN detection ───────────────────────────────────
+    it('returns RESOLUCIÓN when prefix contains "resolución"', () => {
+      expect(assembler.detectDocumentType('La presente resolución se dicta en uso de las facultades')).toBe('RESOLUCIÓN');
+    });
+
+    it('returns RESOLUCIÓN when prefix contains "visto el"', () => {
+      expect(assembler.detectDocumentType('Visto el expediente número 2024-001 y los antecedentes')).toBe('RESOLUCIÓN');
+    });
+
+    it('does NOT return RESOLUCIÓN for colloquial "visto" without legal context', () => {
+      expect(assembler.detectDocumentType('el documento fue visto por el notario')).toBeNull();
+    });
+
+    it('returns RESOLUCIÓN when prefix contains "considerando"', () => {
+      expect(assembler.detectDocumentType('CONSIDERANDO: que la normativa vigente establece')).toBe('RESOLUCIÓN');
+    });
+
+    // ─── Task 4.6: null for unrecognized text ─────────────────────────────
+    it('returns null for unrecognized plain text', () => {
+      expect(assembler.detectDocumentType('Hola mundo, este es un texto cualquiera')).toBeNull();
+    });
+
+    it('returns null for empty string', () => {
+      expect(assembler.detectDocumentType('')).toBeNull();
+    });
+
+    // ─── Triangulation: case-insensitive detection ────────────────────────
+    it('detects document type case-insensitively', () => {
+      expect(assembler.detectDocumentType('contrato de servicios profesionales')).toBe('CONTRATO');
+    });
+  });
 });

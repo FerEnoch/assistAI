@@ -11,12 +11,14 @@ import {
   COMPLETION_CONFIG,
   PROVIDER_CONFIG,
   RETRIEVAL_CONFIG,
+  STRUCTURAL_CONFIG,
 } from '@assistai/shared';
 import type { CompletionRequestPayload, RetrievalHit } from '@assistai/shared';
 import { RetrievalService } from '../retrieval/retrieval.service';
 import { QUERY_EMBEDDING, type QueryEmbeddingPort } from '../retrieval/query-embedding.token';
 import { PromptAssembler } from './prompt-assembler';
 import { ProviderRouter } from '../provider/provider-router.service';
+import { StructuralMatchService } from './structural-match.service';
 import { mapToErrorCode, getErrorMessage, ErrorCode } from '../errors';
 
 /**
@@ -53,6 +55,7 @@ export class CompletionService {
     @Inject(QUERY_EMBEDDING) private readonly queryEmbedding: QueryEmbeddingPort,
     private readonly promptAssembler: PromptAssembler,
     private readonly providerRouter: ProviderRouter,
+    private readonly structuralMatchService: StructuralMatchService,
   ) {}
 
   /**
@@ -178,6 +181,7 @@ export class CompletionService {
       let evidence: RetrievalHit[] = [];
       let retrievalLatencyMs = 0;
       let isGrounded = false;
+      let queryEmbedding: number[] | null = null;
 
       if (!this.promptAssembler.shouldSkipRetrieval(payload.prefix)) {
         const retrievalStart = Date.now();
@@ -186,7 +190,7 @@ export class CompletionService {
           // Use last 500 chars for query embedding — captures enough local context
           // without being too narrow (200 was too short for topic-level retrieval).
           const queryText = payload.prefix.slice(-500).trim();
-          const queryEmbedding = await this.queryEmbedding.embed(queryText);
+          queryEmbedding = await this.queryEmbedding.embed(queryText);
 
           if (queryEmbedding) {
             evidence = await this.retrievalService.findSimilarChunks(
@@ -212,6 +216,22 @@ export class CompletionService {
         isGrounded = true;
       }
 
+      // Step 3.5: Document type detection — classify the document before meta emission
+      const docType = this.promptAssembler.detectDocumentType(payload.prefix);
+
+      // Step 3.6: Structural match gate — reuse already-retrieved evidence (no second DB call)
+      if (
+        queryEmbedding &&
+        queryEmbedding.length > 0 &&
+        payload.prefix.trim().length >= STRUCTURAL_CONFIG.minPrefixChars &&
+        evidence.length > 0 &&
+        evidence[0].similarity >= STRUCTURAL_CONFIG.similarityThreshold
+      ) {
+        if (timedOut || signal?.aborted) return;
+        await this.streamStructuralMatch(subject, evidence[0], saved.id, startMs, docType);
+        return; // early return — skip LLM
+      }
+
       // Emit retrieval metadata
       subject.next({
         type: 'meta',
@@ -221,6 +241,7 @@ export class CompletionService {
           retrievalLatencyMs,
           isGrounded,
           providerType,
+          docType,
         }),
       });
 
@@ -335,6 +356,53 @@ export class CompletionService {
     } finally {
       clearTimeout(timeoutHandle);
       subject.complete();
+    }
+  }
+
+  /**
+   * Stream a structural match result directly, bypassing the LLM provider.
+   *
+   * Emits meta → tokens → done (via streamTokens) → persists hit → updates record.
+   * The `streamTokens` method on StructuralMatchService emits `done` internally.
+   */
+  private async streamStructuralMatch(
+    subject: Subject<SseMessageEvent>,
+    hit: RetrievalHit,
+    completionId: string,
+    startMs: number,
+    docType: string | null,
+  ): Promise<void> {
+    // 1. Emit meta event (isGrounded: true, structuralMatch: true)
+    subject.next({
+      type: 'meta',
+      data: JSON.stringify({
+        completionId,
+        retrievedChunks: 1,
+        retrievalLatencyMs: 0,
+        isGrounded: true,
+        structuralMatch: true,
+        docType,
+      }),
+    });
+
+    // 2. Stream the structural content as tokens (also emits done)
+    this.structuralMatchService.streamTokens(subject, hit, completionId, startMs);
+
+    // 3. Non-fatal bookkeeping — must NOT throw after done was emitted
+    try {
+      await this.persistRetrievalHits(completionId, [hit]);
+    } catch (err) {
+      this.logger.warn(`[Structural] Failed to persist hit: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    try {
+      await this.completionRepo.update(completionId, {
+        retrievedChunkCount: 1,
+        latencyMs: Date.now() - startMs,
+        outcomeStatus: 'completed',
+      });
+    } catch (err) {
+      this.logger.warn(`[Structural] Failed to update completion record: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

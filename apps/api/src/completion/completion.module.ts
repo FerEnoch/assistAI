@@ -10,6 +10,7 @@ import { ProviderModule } from '../provider/provider.module';
 import { CompletionController } from './completion.controller';
 import { CompletionService } from './completion.service';
 import { PromptAssembler } from './prompt-assembler';
+import { StructuralMatchService } from './structural-match.service';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { PromptAssembler } from './prompt-assembler';
     ProviderModule,
   ],
   controllers: [CompletionController],
-  providers: [CompletionService, PromptAssembler],
+  providers: [CompletionService, PromptAssembler, StructuralMatchService],
   exports: [CompletionService],
 })
 export class CompletionModule {}

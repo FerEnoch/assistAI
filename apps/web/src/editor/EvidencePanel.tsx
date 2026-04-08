@@ -21,9 +21,13 @@ interface EvidencePanelProps {
   isGrounded: boolean;
   /** Retrieval hits to display */
   hits: EvidenceHit[];
+  /** Whether the completion came from the structural fast-path */
+  structuralMatch?: boolean;
+  /** Detected document type (e.g. CONTRATO, DEMANDA) */
+  docType?: string | null;
 }
 
-export function EvidencePanel({ isOpen, onToggle, isGrounded, hits }: EvidencePanelProps) {
+export function EvidencePanel({ isOpen, onToggle, isGrounded, hits, structuralMatch, docType }: EvidencePanelProps) {
   // Botón siempre visible — el usuario debe poder ver qué fuentes se usaron (o que no hay)
   const hasHits = hits.length > 0;
 
@@ -60,12 +64,17 @@ export function EvidencePanel({ isOpen, onToggle, isGrounded, hits }: EvidencePa
       {/* Grounding indicator */}
       <div style={{
         ...styles.groundingBadge,
-        backgroundColor: isGrounded ? 'var(--bg-secondary)' : 'var(--bg-secondary)',
-        borderColor: isGrounded ? 'var(--success)' : 'var(--warning)',
-        color: isGrounded ? 'var(--success)' : 'var(--warning)',
+        backgroundColor: 'var(--bg-secondary)',
+        borderColor: structuralMatch ? 'var(--accent-blue, #3b82f6)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
+        color: structuralMatch ? 'var(--accent-blue, #3b82f6)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
       }}>
-        <span>{isGrounded ? '✓' : '○'}</span>
-        <span>{isGrounded ? 'Respuesta basada en tus documentos' : 'Respuesta sin evidencia documental'}</span>
+        <span>{structuralMatch ? '📋' : (isGrounded ? '✓' : '○')}</span>
+        <span>
+          {structuralMatch
+            ? `Completando desde tu documento: ${hits[0]?.documentTitle ?? 'tu documento'}`
+            : (isGrounded ? 'Respuesta basada en tus documentos' : 'Respuesta sin evidencia documental')
+          }
+        </span>
       </div>
 
       {/* Evidence hits list */}
@@ -78,7 +87,7 @@ export function EvidencePanel({ isOpen, onToggle, isGrounded, hits }: EvidencePa
       ) : (
         <ul style={styles.hitList}>
           {hits.map((hit) => (
-            <EvidenceHitCard key={hit.chunkId} hit={hit} />
+            <EvidenceHitCard key={hit.chunkId} hit={hit} isStructural={structuralMatch === true} />
           ))}
         </ul>
       )}
@@ -91,7 +100,7 @@ export function EvidencePanel({ isOpen, onToggle, isGrounded, hits }: EvidencePa
  *
  * Shows title, source type, relevance score, and excerpt.
  */
-function EvidenceHitCard({ hit }: { hit: EvidenceHit }) {
+function EvidenceHitCard({ hit, isStructural }: { hit: EvidenceHit; isStructural?: boolean }) {
   const relevancePercent = Math.round(hit.similarity * 100);
 
   // Color based on relevance
@@ -102,7 +111,10 @@ function EvidenceHitCard({ hit }: { hit: EvidenceHit }) {
   };
 
   return (
-    <li style={styles.hitCard}>
+    <li style={{
+      ...styles.hitCard,
+      ...(isStructural ? { borderLeft: '3px solid var(--accent-blue, #3b82f6)' } : {}),
+    }}>
       <div style={styles.hitHeader}>
         <div style={styles.hitTitleRow}>
           <span style={styles.hitRank}>#{hit.rank}</span>
@@ -121,7 +133,9 @@ function EvidenceHitCard({ hit }: { hit: EvidenceHit }) {
 
       <div style={styles.hitMeta}>
         <span style={styles.metaLabel}>Tipo:</span>
-        <span style={styles.metaValue}>Documento</span>
+        <span style={styles.metaValue}>
+          {isStructural ? '📋 Estructura directa' : 'Documento'}
+        </span>
       </div>
 
       <p style={styles.hitExcerpt}>

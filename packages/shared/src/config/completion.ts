@@ -19,6 +19,29 @@ export const RETRIEVAL_CONFIG = {
 } as const;
 
 /**
+ * Structural match fast-path configuration.
+ *
+ * When a vector search hit meets this HIGH similarity threshold,
+ * the completion is served directly from the matching document chunk
+ * — bypassing the LLM entirely. This guarantees every suggestion
+ * is grounded in the user's own documents.
+ *
+ * The minPrefixChars gate (100) is intentionally higher than
+ * COMPLETION_CONFIG.retrievalGateMinChars (50) to avoid false-positive
+ * structural matches on very short prefixes.
+ */
+export const STRUCTURAL_CONFIG = {
+  /** Minimum cosine similarity to trigger the structural (LLM-bypass) path */
+  similarityThreshold: 0.85,
+
+  /** Only the top-1 match is considered for structural completion */
+  topK: 1,
+
+  /** Minimum prefix length before the structural gate is evaluated */
+  minPrefixChars: 100,
+} as const;
+
+/**
  * Free-tier provider configuration for round-robin.
  * Each provider has its API key from environment and a default model.
  *

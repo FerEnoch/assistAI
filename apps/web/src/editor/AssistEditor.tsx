@@ -4,6 +4,7 @@ import type { CompletionStatus } from './use-completion';
 import { useEditorSession } from './use-editor-session';
 import { useEditorSetup } from './use-editor-setup';
 import { EvidencePanel } from './EvidencePanel';
+import { DocumentTypeBadge } from './DocumentTypeBadge';
 
 /**
  * AssistAI Editor — Tiptap-based writing editor with inline completions (A-060 through A-065, A-081).
@@ -15,7 +16,11 @@ export function AssistEditor() {
   const [evidencePanelOpen, setEvidencePanelOpen] = useState(false);
   const { sessionId, isCreatingSession } = useEditorSession();
   const { editor, status, error, evidence, clearEvidence, updateEvidence } =
-    useEditorSetup({ sessionId, evidencePanelOpen });
+    useEditorSetup({
+      sessionId,
+      evidencePanelOpen,
+      onEvidenceWithHits: () => setEvidencePanelOpen(true),
+    });
 
   const toggleEvidencePanel = useCallback(() => {
     setEvidencePanelOpen((prev) => !prev);
@@ -35,8 +40,20 @@ export function AssistEditor() {
   return (
     <div style={styles.outerContainer}>
       <div style={styles.container}>
+        {/* Document type badge */}
+        {evidence.docType && (
+          <div style={{ padding: '0.25rem 0.75rem 0' }}>
+            <DocumentTypeBadge docType={evidence.docType} />
+          </div>
+        )}
+
         {/* Status bar */}
-        <StatusBar status={status} error={error} />
+        <StatusBar
+          status={status}
+          error={error}
+          structuralMatch={evidence.structuralMatch}
+          documentTitle={evidence.hits[0]?.documentTitle}
+        />
 
         {/* Editor */}
         <div style={styles.editorWrapper}>
@@ -53,6 +70,8 @@ export function AssistEditor() {
         onToggle={toggleEvidencePanel}
         isGrounded={evidence.isGrounded}
         hits={evidence.hits}
+        structuralMatch={evidence.structuralMatch}
+        docType={evidence.docType}
       />
     </div>
   );
@@ -61,7 +80,17 @@ export function AssistEditor() {
 /**
  * Status bar — shows completion status in Spanish (A-065).
  */
-function StatusBar({ status, error }: { status: CompletionStatus; error: string | null }) {
+function StatusBar({
+  status,
+  error,
+  structuralMatch,
+  documentTitle,
+}: {
+  status: CompletionStatus;
+  error: string | null;
+  structuralMatch?: boolean;
+  documentTitle?: string | null;
+}) {
   const getStatusDisplay = (): { text: string; color: string } => {
     switch (status) {
       case 'idle':
@@ -69,6 +98,12 @@ function StatusBar({ status, error }: { status: CompletionStatus; error: string 
       case 'waiting':
         return { text: 'Buscando sugerencias...', color: 'var(--warning)' };
       case 'streaming':
+        if (structuralMatch && documentTitle) {
+          return {
+            text: `Completando con estructura de: ${documentTitle}`,
+            color: 'var(--accent-blue, #3b82f6)',
+          };
+        }
         return { text: 'Generando sugerencia (Tab para aceptar, Esc para descartar)', color: 'var(--success)' };
       case 'error':
         return {

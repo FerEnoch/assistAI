@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import envConfig from '../config';
 import { getCsrfToken } from '../auth/csrf';
 
@@ -24,6 +24,10 @@ export interface EvidenceState {
   hits: EvidenceHit[];
   /** Completion ID for event tracking */
   completionId: string | null;
+  /** Whether the completion came from the structural fast-path */
+  structuralMatch: boolean;
+  /** Detected document type (e.g. CONTRATO, DEMANDA) or null */
+  docType: string | null;
 }
 
 interface UseEvidenceOptions {
@@ -44,6 +48,8 @@ export function useEvidence({ isOpen, onPanelOpen }: UseEvidenceOptions) {
     isGrounded: false,
     hits: [],
     completionId: null,
+    structuralMatch: false,
+    docType: null,
   });
 
   /**
@@ -53,11 +59,15 @@ export function useEvidence({ isOpen, onPanelOpen }: UseEvidenceOptions) {
     completionId: string;
     isGrounded: boolean;
     retrievalHits: EvidenceHit[];
+    structuralMatch?: boolean;
+    docType?: string | null;
   }) => {
     setEvidence({
       isGrounded: data.isGrounded,
       hits: data.retrievalHits ?? [],
       completionId: data.completionId,
+      structuralMatch: data.structuralMatch ?? false,
+      docType: data.docType ?? null,
     });
   }, []);
 
@@ -69,12 +79,17 @@ export function useEvidence({ isOpen, onPanelOpen }: UseEvidenceOptions) {
       isGrounded: false,
       hits: [],
       completionId: null,
+      structuralMatch: false,
+      docType: null,
     });
   }, []);
 
   // Track panel open events (A-084)
+  const trackedCompletionIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (isOpen && evidence.completionId) {
+    if (isOpen && evidence.completionId && evidence.completionId !== trackedCompletionIdRef.current) {
+      trackedCompletionIdRef.current = evidence.completionId;
       onPanelOpen?.(evidence.completionId);
 
       // Fire analytics event

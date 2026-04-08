@@ -49,6 +49,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
     const mockAssembler = {
       shouldSkipRetrieval: vi.fn().mockReturnValue(true),
       assemblePrompt: vi.fn().mockReturnValue({ system: 'sys', user: 'usr' }),
+      detectDocumentType: vi.fn().mockReturnValue(null),
     };
 
     // Mock adapter that yields one token then done
@@ -68,6 +69,11 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       }),
     };
 
+    const mockStructuralMatch = {
+      findMatch: vi.fn().mockResolvedValue(null),
+      streamTokens: vi.fn(),
+    };
+
     const service = new CompletionService(
       mockSessionRepo as any,
       mockCompletionRepo as any,
@@ -77,6 +83,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       mockEmbedding as any,
       mockAssembler as any,
       mockRouter as any,
+      mockStructuralMatch as any,
     );
 
     const ac = new AbortController();
@@ -136,8 +143,10 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       {
         shouldSkipRetrieval: vi.fn().mockReturnValue(true),
         assemblePrompt: vi.fn().mockReturnValue({ system: 's', user: 'u' }),
+        detectDocumentType: vi.fn().mockReturnValue(null),
       } as any,
       mockRouter as any,
+      { findMatch: vi.fn().mockResolvedValue(null), streamTokens: vi.fn() } as any,
     );
 
     const ac = new AbortController();
@@ -192,6 +201,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       {
         shouldSkipRetrieval: vi.fn().mockReturnValue(true),
         assemblePrompt: vi.fn().mockReturnValue({ system: 's', user: 'u' }),
+        detectDocumentType: vi.fn().mockReturnValue(null),
       } as any,
       {
         getProvider: vi.fn().mockResolvedValue({
@@ -200,6 +210,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
           providerType: 'free_tier',
         }),
       } as any,
+      { findMatch: vi.fn().mockResolvedValue(null), streamTokens: vi.fn() } as any,
     );
 
     const ac = new AbortController();
@@ -249,6 +260,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       {
         shouldSkipRetrieval: vi.fn().mockReturnValue(true),
         assemblePrompt: vi.fn().mockReturnValue({ system: 's', user: 'u' }),
+        detectDocumentType: vi.fn().mockReturnValue(null),
       } as any,
       {
         getProvider: vi.fn().mockResolvedValue({
@@ -257,6 +269,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
           providerType: 'free_tier',
         }),
       } as any,
+      { findMatch: vi.fn().mockResolvedValue(null), streamTokens: vi.fn() } as any,
     );
 
     // No signal — normal flow

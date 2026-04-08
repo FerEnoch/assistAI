@@ -21,6 +21,7 @@ export type {
 } from './ingestion';
 export {
   RETRIEVAL_CONFIG,
+  STRUCTURAL_CONFIG,
   COMPLETION_CONFIG,
   PROVIDER_CONFIG,
   RATE_LIMIT_CONFIG,

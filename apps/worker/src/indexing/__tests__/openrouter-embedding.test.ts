@@ -57,7 +57,7 @@ describe('OpenRouterEmbeddingProvider', () => {
   it('should have correct provider metadata', () => {
     expect(provider.providerName).toBe('openrouter');
     expect(provider.modelVersion).toBe(
-      'nvidia/llama-nemotron-embed-vl-1b-v2:free-1024d',
+      'nvidia/llama-nemotron-embed-vl-1b-v2:free-projected-1024d',
     );
     expect(provider.dimensions).toBe(1024);
   });

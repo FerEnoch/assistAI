@@ -235,7 +235,7 @@ importers:
         version: 11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/platform-express@11.1.17)(reflect-metadata@0.2.2)(rxjs@7.8.1)
       '@nestjs/typeorm':
         specifier: 11.0.0
-        version: 11.0.0(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@11.1.17)(reflect-metadata@0.2.2)(rxjs@7.8.1)(typeorm@0.3.28(ioredis@5.4.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3)))
+        version: 11.0.0(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@11.1.17)(reflect-metadata@0.2.2)(rxjs@7.8.1)(typeorm@0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3)))
       bullmq:
         specifier: 5.28.0
         version: 5.28.0
@@ -245,9 +245,6 @@ importers:
       googleapis:
         specifier: 171.4.0
         version: 171.4.0
-      ioredis:
-        specifier: 5.4.1
-        version: 5.4.1
       mammoth:
         specifier: 1.12.0
         version: 1.12.0
@@ -280,7 +277,7 @@ importers:
         version: 7.8.1
       typeorm:
         specifier: 0.3.28
-        version: 0.3.28(ioredis@5.4.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3))
+        version: 0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3))
       zod:
         specifier: 3.23.0
         version: 3.23.0
@@ -3085,10 +3082,6 @@ packages:
 
   ioredis@5.10.1:
     resolution: {integrity: sha512-HuEDBTI70aYdx1v6U97SbNx9F1+svQKBDo30o0b9fw055LMepzpOOd0Ccg9Q6tbqmBSJaMuY0fB7yw9/vjBYCA==}
-    engines: {node: '>=12.22.0'}
-
-  ioredis@5.4.1:
-    resolution: {integrity: sha512-2YZsvl7jopIa1gaePkeMtd9rAcSjOOjPtpcLlOeusyO+XH2SK5ZcT+UCrElPP+WVIInh2TzeI4XW9ENaSLVVHA==}
     engines: {node: '>=12.22.0'}
 
   ipaddr.js@1.9.1:
@@ -5954,14 +5947,6 @@ snapshots:
       rxjs: 7.8.1
       typeorm: 0.3.28(ioredis@5.10.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3))
 
-  '@nestjs/typeorm@11.0.0(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@11.1.17)(reflect-metadata@0.2.2)(rxjs@7.8.1)(typeorm@0.3.28(ioredis@5.4.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3)))':
-    dependencies:
-      '@nestjs/common': 11.1.17(reflect-metadata@0.2.2)(rxjs@7.8.1)
-      '@nestjs/core': 11.1.17(@nestjs/common@11.1.17(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/platform-express@11.1.17)(reflect-metadata@0.2.2)(rxjs@7.8.1)
-      reflect-metadata: 0.2.2
-      rxjs: 7.8.1
-      typeorm: 0.3.28(ioredis@5.4.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3))
-
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -7940,20 +7925,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  ioredis@5.4.1:
-    dependencies:
-      '@ioredis/commands': 1.5.1
-      cluster-key-slot: 1.1.2
-      debug: 4.4.3
-      denque: 2.1.0
-      lodash.defaults: 4.2.0
-      lodash.isarguments: 3.1.0
-      redis-errors: 1.2.0
-      redis-parser: 3.0.0
-      standard-as-callback: 2.1.0
-    transitivePeerDependencies:
-      - supports-color
-
   ipaddr.js@1.9.1: {}
 
   is-arrayish@0.2.1: {}
@@ -9383,32 +9354,6 @@ snapshots:
       pg: 8.20.0
       redis: 5.11.0
       ts-node: 10.9.2(@types/node@22.19.15)(typescript@5.6.3)
-    transitivePeerDependencies:
-      - babel-plugin-macros
-      - supports-color
-
-  typeorm@0.3.28(ioredis@5.4.1)(pg@8.20.0)(redis@5.11.0)(ts-node@10.9.2(@types/node@22.10.0)(typescript@5.6.3)):
-    dependencies:
-      '@sqltools/formatter': 1.2.5
-      ansis: 4.2.0
-      app-root-path: 3.1.0
-      buffer: 6.0.3
-      dayjs: 1.11.20
-      debug: 4.4.3
-      dedent: 1.7.2
-      dotenv: 16.6.1
-      glob: 10.5.0
-      reflect-metadata: 0.2.2
-      sha.js: 2.4.12
-      sql-highlight: 6.1.0
-      tslib: 2.8.1
-      uuid: 11.1.0
-      yargs: 17.7.2
-    optionalDependencies:
-      ioredis: 5.4.1
-      pg: 8.20.0
-      redis: 5.11.0
-      ts-node: 10.9.2(@types/node@22.10.0)(typescript@5.6.3)
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color

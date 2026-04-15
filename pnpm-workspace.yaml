@@ -1,3 +1,58 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# ─── SUPPLY CHAIN SECURITY ────────────────────────────────────────
+
+# Retrasa la instalación de versiones publicadas recientemente.
+# Valor: 4320 minutos = 3 días.
+# Fundamento: la mayoría de versiones maliciosas son detectadas y removidas
+# del registro en horas. Esperar 3 días elimina prácticamente ese riesgo.
+# Aplica a TODAS las dependencias, incluyendo las transitivas.
+# Disponible desde pnpm >= 10.16.0
+minimumReleaseAge: 4320
+
+# Paquetes excluidos del minimumReleaseAge.
+# Usar solo para dependencias internas o paquetes de confianza extrema
+# que requieren actualizaciones inmediatas (ej: parches de seguridad propios).
+# Por defecto: ninguno excluido.
+# minimumReleaseAgeExclude:
+#   - '@assistai/*'
+
+# Política de confianza: falla si un paquete "baja" su nivel de confianza
+# respecto a versiones anteriores (ej: antes tenía firma criptográfica, ahora no).
+# Ayuda a detectar paquetes secuestrados que perdieron sus credenciales originales.
+# Disponible desde pnpm >= 10.21.0
+trustPolicy: no-downgrade
+
+# Ignorar trustPolicy para paquetes mayores a 30 días.
+# Paquetes viejos sin firma son razonablemente seguros — esta config evita
+# tener que excluir manualmente cada paquete legacy sin provenance.
+# Disponible desde pnpm >= 10.27.0
+trustPolicyIgnoreAfter: 43200  # 30 días en minutos
+
+# Bloquea dependencias transitivas que provienen de fuentes "exóticas"
+# (git repos, URLs directas de tarballs). Solo las dependencias DIRECTAS
+# pueden usar fuentes exóticas si el equipo lo decide explícitamente.
+# Disponible desde pnpm >= 10.26.0
+blockExoticSubdeps: true
+
+# ─── BUILD SCRIPTS (POST-INSTALL) ─────────────────────────────────
+
+# Lista blanca explícita de paquetes que pueden ejecutar scripts
+# de instalación (preinstall, install, postinstall).
+# Cualquier paquete NO listado aquí tendrá sus scripts bloqueados.
+# NUNCA usar dangerouslyAllowAllBuilds: true.
+#
+# Cómo mantener esta lista:
+#   1. Si pnpm bloquea la instalación de un paquete con scripts, evaluar si es legítimo
+#   2. Si lo es (ej: compilación nativa de esbuild), agregarlo aquí con la versión exacta
+#   3. Versiones específicas se expresan como: package@version || version2
+allowBuilds:
+  esbuild: true           # compilación de binarios nativos — requerido por Vite/NestJS build
+  '@nestjs/core': true    # opencollective postinstall — falla silenciosamente, es informativo
+
+# Activa error (no solo warning) si hay paquetes con scripts no revisados.
+# Combinado con allowBuilds, hace que la instalación falle explícitamente
+# si aparece un nuevo paquete con scripts que no fue aprobado.
+strictDepBuilds: true

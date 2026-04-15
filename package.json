@@ -5,15 +5,9 @@
   "description": "AssistAI - AI writing assistant for Spanish-speaking legal professionals",
   "engines": {
     "node": ">=20.0.0",
-    "pnpm": ">=10.0.0"
+    "pnpm": ">=10.27.0"
   },
   "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "@nestjs/core"
-    ]
-  },
   "scripts": {
     "dev": "pnpm -r --parallel run dev",
     "dev:api": "pnpm --filter @assistai/api dev",

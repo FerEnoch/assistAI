@@ -124,10 +124,10 @@ export function IndexingStatus() {
       {/* Summary counters */}
       {counts && (
         <div style={styles.counters}>
-          <StatusBadge label="En cola" count={counts.queued} color="#6b7280" />
-          <StatusBadge label="Procesando" count={counts.processing} color="#f59e0b" />
-          <StatusBadge label="Indexados" count={counts.indexed} color="#10b981" />
-          <StatusBadge label="Fallidos" count={counts.failed} color="#ef4444" />
+          <StatusBadge label="En cola" count={counts.queued} color="var(--color-neutral)" />
+          <StatusBadge label="Procesando" count={counts.processing} color="var(--warning)" />
+          <StatusBadge label="Indexados" count={counts.indexed} color="var(--success)" />
+          <StatusBadge label="Fallidos" count={counts.failed} color="var(--error)" />
         </div>
       )}
 
@@ -135,13 +135,13 @@ export function IndexingStatus() {
       {total > 0 && counts && (
         <div style={styles.progressBar}>
           <div
-            style={{ ...styles.progressFill, width: `${(counts.indexed / total) * 100}%`, backgroundColor: '#10b981' }}
+            style={{ ...styles.progressFill, width: `${(counts.indexed / total) * 100}%`, backgroundColor: 'var(--success)' }}
           />
           <div
-            style={{ ...styles.progressFill, width: `${(counts.processing / total) * 100}%`, backgroundColor: '#f59e0b' }}
+            style={{ ...styles.progressFill, width: `${(counts.processing / total) * 100}%`, backgroundColor: 'var(--warning)' }}
           />
           <div
-            style={{ ...styles.progressFill, width: `${(counts.failed / total) * 100}%`, backgroundColor: '#ef4444' }}
+            style={{ ...styles.progressFill, width: `${(counts.failed / total) * 100}%`, backgroundColor: 'var(--error)' }}
           />
         </div>
       )}
@@ -245,10 +245,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  queued: '#6b7280',
-  processing: '#f59e0b',
-  indexed: '#10b981',
-  failed: '#ef4444',
+  queued: 'var(--color-neutral)',
+  processing: 'var(--warning)',
+  indexed: 'var(--success)',
+  failed: 'var(--error)',
 };
 
 const MIME_LABELS: Record<string, string> = {
@@ -260,26 +260,26 @@ const MIME_LABELS: Record<string, string> = {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    backgroundColor: '#fff',
-    borderRadius: '10px',
+    backgroundColor: 'var(--bg-elevated)',
+    borderRadius: 'var(--radius-lg)',
     padding: '1.5rem',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+    boxShadow: 'var(--shadow-sm)',
   },
   title: {
     fontSize: '1.125rem',
     fontWeight: 600,
-    color: '#1a1a2e',
+    color: 'var(--text-primary)',
     margin: '0 0 1rem',
   },
   loading: {
     fontSize: '0.875rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
     textAlign: 'center',
     padding: '2rem 0',
   },
   error: {
     fontSize: '0.875rem',
-    color: '#ef4444',
+    color: 'var(--error)',
     textAlign: 'center',
     padding: '1rem 0',
   },
@@ -292,8 +292,8 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     textAlign: 'center' as const,
     padding: '0.75rem 0.5rem',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px',
+    backgroundColor: 'var(--bg-secondary)',
+    borderRadius: 'var(--radius-md)',
   },
   badgeCount: {
     display: 'block',
@@ -303,14 +303,14 @@ const styles: Record<string, React.CSSProperties> = {
   badgeLabel: {
     display: 'block',
     fontSize: '0.75rem',
-    color: '#6b7280',
+    color: 'var(--text-tertiary)',
     marginTop: '0.25rem',
   },
   progressBar: {
     display: 'flex',
     height: '6px',
-    backgroundColor: '#e5e7eb',
-    borderRadius: '3px',
+    backgroundColor: 'var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)',
     overflow: 'hidden',
     marginBottom: '1rem',
   },
@@ -327,16 +327,16 @@ const styles: Record<string, React.CSSProperties> = {
   filterButton: {
     padding: '0.375rem 0.75rem',
     fontSize: '0.8rem',
-    color: '#6b7280',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #e5e7eb',
-    borderRadius: '6px',
+    color: 'var(--text-tertiary)',
+    backgroundColor: 'var(--bg-secondary)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)',
     cursor: 'pointer',
   },
   filterActive: {
-    color: '#1a1a2e',
-    backgroundColor: '#e0e7ff',
-    borderColor: '#818cf8',
+    color: 'var(--text-primary)',
+    backgroundColor: 'var(--accent-subtle)',
+    borderColor: 'var(--accent-muted)',
     fontWeight: 600,
   },
   docList: {
@@ -345,13 +345,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   emptyState: {
     fontSize: '0.875rem',
-    color: '#9ca3af',
+    color: 'var(--text-tertiary)',
     textAlign: 'center' as const,
     padding: '2rem 0',
   },
   docRow: {
     padding: '0.75rem 0',
-    borderBottom: '1px solid #f3f4f6',
+    borderBottom: '1px solid var(--border-subtle)',
   },
   docInfo: {
     display: 'flex',
@@ -362,11 +362,11 @@ const styles: Record<string, React.CSSProperties> = {
   docTitle: {
     fontSize: '0.875rem',
     fontWeight: 500,
-    color: '#111827',
+    color: 'var(--text-primary)',
   },
   docMime: {
     fontSize: '0.7rem',
-    color: '#9ca3af',
+    color: 'var(--text-tertiary)',
     textTransform: 'uppercase' as const,
   },
   docStatusRow: {
@@ -387,15 +387,15 @@ const styles: Record<string, React.CSSProperties> = {
   },
   statusText: {
     fontSize: '0.8rem',
-    color: '#6b7280',
+    color: 'var(--text-secondary)',
   },
   deleteButton: {
     padding: '0.2rem 0.5rem',
     fontSize: '0.75rem',
-    color: '#9ca3af',
+    color: 'var(--text-tertiary)',
     backgroundColor: 'transparent',
-    border: '1px solid #e5e7eb',
-    borderRadius: '4px',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)',
     cursor: 'pointer',
     lineHeight: 1,
     transition: 'color 0.15s, border-color 0.15s',
@@ -406,13 +406,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   errorDetail: {
     fontSize: '0.75rem',
-    color: '#ef4444',
+    color: 'var(--error)',
     margin: '0.25rem 0 0',
     fontStyle: 'italic',
   },
   indexedDate: {
     fontSize: '0.75rem',
-    color: '#9ca3af',
+    color: 'var(--text-tertiary)',
     margin: '0.25rem 0 0',
   },
   refreshButton: {
@@ -420,10 +420,10 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.5rem 1rem',
     fontSize: '0.8rem',
     fontWeight: 500,
-    color: '#4f46e5',
-    backgroundColor: '#eef2ff',
-    border: '1px solid #c7d2fe',
-    borderRadius: '6px',
+    color: 'var(--accent-default)',
+    backgroundColor: 'var(--accent-subtle)',
+    border: '1px solid var(--accent-muted)',
+    borderRadius: 'var(--radius-md)',
     cursor: 'pointer',
     width: '100%',
   },

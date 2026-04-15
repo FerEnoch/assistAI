@@ -65,8 +65,8 @@ export function EvidencePanel({ isOpen, onToggle, isGrounded, hits, structuralMa
       <div style={{
         ...styles.groundingBadge,
         backgroundColor: 'var(--bg-secondary)',
-        borderColor: structuralMatch ? 'var(--accent-blue, #3b82f6)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
-        color: structuralMatch ? 'var(--accent-blue, #3b82f6)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
+        borderColor: structuralMatch ? 'var(--accent-info)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
+        color: structuralMatch ? 'var(--accent-info)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
       }}>
         <span>{structuralMatch ? '📋' : (isGrounded ? '✓' : '○')}</span>
         <span>
@@ -105,15 +105,15 @@ function EvidenceHitCard({ hit, isStructural }: { hit: EvidenceHit; isStructural
 
   // Color based on relevance
   const getRelevanceColor = (): string => {
-    if (relevancePercent >= 85) return '#059669';
-    if (relevancePercent >= 75) return '#d97706';
-    return '#dc2626';
+    if (relevancePercent >= 85) return 'var(--success)';
+    if (relevancePercent >= 75) return 'var(--warning)';
+    return 'var(--error)';
   };
 
   return (
     <li style={{
       ...styles.hitCard,
-      ...(isStructural ? { borderLeft: '3px solid var(--accent-blue, #3b82f6)' } : {}),
+      ...(isStructural ? { borderLeft: '3px solid var(--accent-info)' } : {}),
     }}>
       <div style={styles.hitHeader}>
         <div style={styles.hitTitleRow}>
@@ -178,7 +178,7 @@ const styles: Record<string, React.CSSProperties> = {
     height: '20px',
     borderRadius: '50%',
     backgroundColor: 'var(--accent-default)',
-    color: '#fff',
+    color: 'var(--text-on-accent)',
     fontSize: '0.7rem',
     fontWeight: 700,
     display: 'flex',

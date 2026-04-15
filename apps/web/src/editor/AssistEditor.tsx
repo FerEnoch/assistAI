@@ -101,7 +101,7 @@ function StatusBar({
         if (structuralMatch && documentTitle) {
           return {
             text: `Completando con estructura de: ${documentTitle}`,
-            color: 'var(--accent-blue, #3b82f6)',
+            color: 'var(--accent-info)',
           };
         }
         return { text: 'Generando sugerencia (Tab para aceptar, Esc para descartar)', color: 'var(--success)' };
@@ -187,7 +187,7 @@ const ghostTextStyles = `
   font-family: 'Georgia', 'Times New Roman', serif;
   font-size: 1rem;
   line-height: 1.75;
-  color: var(--editor-text, #1a1a2e);
+  color: var(--text-primary);
   min-height: 0;
   overflow-y: auto;
 }
@@ -200,28 +200,28 @@ const ghostTextStyles = `
   font-size: 1.75rem;
   font-weight: 700;
   margin: 1.5rem 0 0.75rem;
-  color: var(--editor-heading, #0f172a);
+  color: var(--text-primary);
 }
 
 .ProseMirror h2 {
   font-size: 1.375rem;
   font-weight: 600;
   margin: 1.25rem 0 0.625rem;
-  color: var(--editor-heading, #1e293b);
+  color: var(--text-primary);
 }
 
 .ProseMirror h3 {
   font-size: 1.125rem;
   font-weight: 600;
   margin: 1rem 0 0.5rem;
-  color: var(--editor-heading, #334155);
+  color: var(--text-secondary);
 }
 
 /* Placeholder text */
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: var(--editor-placeholder, #9ca3af);
+  color: var(--text-tertiary);
   pointer-events: none;
   height: 0;
   font-style: italic;
@@ -232,20 +232,13 @@ const ghostTextStyles = `
   opacity: 0.4;
   pointer-events: none;
   user-select: none;
-  color: #6366f1;
+  color: var(--accent-default);
   font-style: italic;
 }
 
 /* ProseMirror focus ring */
 .ProseMirror-focused {
   outline: none;
-}
-
-/* Dark mode variables */
-.dark {
-  --editor-text: #e5e5e5;
-  --editor-heading: #f0f0f0;
-  --editor-placeholder: #6b7280;
 }
 `;
 

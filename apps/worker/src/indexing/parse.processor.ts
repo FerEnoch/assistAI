@@ -11,6 +11,7 @@ import type { ParseJobPayload, EmbedJobPayload } from '@assistai/shared';
 import { Document, DocumentVersion, DocumentChunk } from '@assistai/entities';
 import { parseDocument } from './document-parser';
 import { chunkText } from './chunker';
+import { MetadataExtractor } from './metadata-extractor.service';
 
 /**
  * Parse processor (A-042, A-043, A-044, A-045, A-046).
@@ -38,6 +39,7 @@ export class ParseProcessor extends WorkerHost {
     private readonly dataSource: DataSource,
     @InjectQueue(QUEUE_NAMES.INGESTION_EMBED)
     private readonly embedQueue: Queue<EmbedJobPayload>,
+    private readonly metadataExtractor: MetadataExtractor,
   ) {
     super();
   }
@@ -124,6 +126,7 @@ export class ParseProcessor extends WorkerHost {
             tokenCount: Math.ceil(chunk.content.length / 4), // Rough estimate
             contentHash: chunk.contentHash,
             modelVersion: EMBEDDING_CONFIG.model,
+            metadata: this.metadataExtractor.extract(chunk.content),
             // embedding: null — will be filled by embedding job later
           }),
         );

@@ -15,6 +15,7 @@ import { EmbedProcessor } from './embed.processor';
 import { EMBEDDING_PROVIDER } from './embedding/embedding-provider.token';
 import { OpenAIEmbeddingProvider } from './embedding/openai-embedding.provider';
 import { OpenRouterEmbeddingProvider } from './embedding/openrouter-embedding.provider';
+import { MetadataExtractor } from './metadata-extractor.service';
 
 /**
  * Resolves the concrete embedding provider based on
@@ -87,6 +88,7 @@ const embeddingProviderFactory = {
   ],
   providers: [
     embeddingProviderFactory,
+    MetadataExtractor,
     DiscoveryProcessor,
     ParseProcessor,
     EmbedProcessor,

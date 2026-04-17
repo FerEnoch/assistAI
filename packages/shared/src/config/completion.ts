@@ -1,3 +1,5 @@
+import type { ChunkMetadata } from '../types/chunk-metadata';
+
 /**
  * Retrieval service configuration (A-053).
  *
@@ -199,4 +201,5 @@ export interface RetrievalHit {
   content: string;
   similarity: number;
   documentTitle?: string | null;
+  metadata?: ChunkMetadata | null;
 }

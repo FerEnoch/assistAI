@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Document } from './document.entity';
 import { Workspace } from './workspace.entity';
+import type { ChunkMetadata } from '@assistai/shared';
 
 /**
  * A chunk of a document with its embedding vector.
@@ -60,6 +61,9 @@ export class DocumentChunk {
 
   @Column({ type: 'varchar', length: 128, nullable: true, name: 'content_hash' })
   contentHash?: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata?: ChunkMetadata | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

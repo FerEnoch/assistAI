@@ -13,3 +13,5 @@ export type { CompletionOutcome } from './completion-request.entity';
 export { CompletionRetrievalHit } from './completion-retrieval-hit.entity';
 export { ModelEndpoint } from './model-endpoint.entity';
 export type { ProviderType, EndpointStatus } from './model-endpoint.entity';
+export { Template } from './template.entity';
+export { TemplateSection } from './template-section.entity';

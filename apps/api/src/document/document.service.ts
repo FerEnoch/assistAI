@@ -1,12 +1,24 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Document } from '@assistai/entities';
+import { Document, DocumentChunk } from '@assistai/entities';
 import type { IngestStatus } from '@assistai/entities';
 
 export interface DeleteDocumentResult {
   id: string;
   deleted: true;
+}
+
+export interface DocTypeBreakdown {
+  docType: string | null;
+  count: number;
+  percentage: number;
+}
+
+export interface CorpusStats {
+  totalDocuments: number;
+  totalChunks: number;
+  docTypeBreakdown: DocTypeBreakdown[];
 }
 
 /**
@@ -19,6 +31,8 @@ export class DocumentService {
   constructor(
     @InjectRepository(Document)
     private readonly documentRepo: Repository<Document>,
+    @InjectRepository(DocumentChunk)
+    private readonly chunkRepo: Repository<DocumentChunk>,
   ) {}
 
   /**
@@ -103,5 +117,49 @@ export class DocumentService {
     }
 
     return counts;
+  }
+
+  /**
+   * Get corpus stats: total documents (excluding template synthetics),
+   * total chunks, and breakdown by docType.
+   */
+  async getCorpusStats(workspaceId: string): Promise<CorpusStats> {
+    // Count non-template documents that are indexed
+    const totalDocuments = await this.documentRepo
+      .createQueryBuilder('doc')
+      .where('doc.workspace_id = :workspaceId', { workspaceId })
+      .andWhere('doc.ingest_status = :status', { status: 'indexed' })
+      .andWhere(
+        "(doc.external_document_id IS NULL OR doc.external_document_id NOT LIKE 'template-%')",
+      )
+      .getCount();
+
+    // Chunks breakdown by docType, excluding template chunks
+    const rawBreakdown = await this.chunkRepo
+      .createQueryBuilder('chunk')
+      .select("chunk.metadata->>'docType'", 'docType')
+      .addSelect('COUNT(*)', 'count')
+      .where('chunk.workspace_id = :workspaceId', { workspaceId })
+      .andWhere(
+        "(chunk.metadata->>'isTemplate')::boolean IS NOT TRUE",
+      )
+      .groupBy("chunk.metadata->>'docType'")
+      .getRawMany<{ docType: string | null; count: string }>();
+
+    const totalChunks = rawBreakdown.reduce(
+      (sum, row) => sum + parseInt(row.count, 10),
+      0,
+    );
+
+    const docTypeBreakdown: DocTypeBreakdown[] = rawBreakdown.map((row) => ({
+      docType: row.docType,
+      count: parseInt(row.count, 10),
+      percentage:
+        totalChunks > 0
+          ? Math.round((parseInt(row.count, 10) / totalChunks) * 10000) / 100
+          : 0,
+    }));
+
+    return { totalDocuments, totalChunks, docTypeBreakdown };
   }
 }

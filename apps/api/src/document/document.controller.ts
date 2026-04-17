@@ -55,6 +55,16 @@ export class DocumentController {
   }
 
   /**
+   * GET /documents/stats
+   * Get corpus statistics for the workspace.
+   */
+  @Get('stats')
+  @UseGuards(SessionGuard)
+  async getCorpusStats(@Req() req: Request) {
+    return this.documentService.getCorpusStats(getWorkspaceId(req));
+  }
+
+  /**
    * GET /documents/status-counts
    * Get counts by indexing status for the workspace.
    */

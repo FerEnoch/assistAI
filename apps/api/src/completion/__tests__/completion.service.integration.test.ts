@@ -38,6 +38,7 @@ describe('CompletionService — structural gate integration', () => {
   let mockAdapter: Record<string, ReturnType<typeof vi.fn>>;
   let mockProviderRouter: Record<string, ReturnType<typeof vi.fn>>;
   let mockStructuralMatch: Record<string, ReturnType<typeof vi.fn>>;
+  let mockMetadataAwareRetrieval: Record<string, ReturnType<typeof vi.fn>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -92,6 +93,11 @@ describe('CompletionService — structural gate integration', () => {
       findMatch: vi.fn().mockResolvedValue(null),
       streamTokens: vi.fn(),
     };
+
+    // MetadataAwareRetrievalService mock — default: no filters detected
+    mockMetadataAwareRetrieval = {
+      detectFilters: vi.fn().mockReturnValue(null),
+    };
   });
 
   /**
@@ -109,6 +115,7 @@ describe('CompletionService — structural gate integration', () => {
       mockPromptAssembler as any,
       mockProviderRouter as any,
       mockStructuralMatch as any,
+      mockMetadataAwareRetrieval as any,
     );
   }
 
@@ -335,5 +342,60 @@ describe('CompletionService — structural gate integration', () => {
 
     // Hit SHOULD still be persisted via persistRetrievalHits
     expect(mockHitRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  // ─── T-8.x: metadata-aware retrieval integration ──────────────────────────
+
+  describe('metadata-aware retrieval integration', () => {
+    it('calls findSimilarChunks with metadata filters when prefix has docType signal', async () => {
+      mockMetadataAwareRetrieval.detectFilters.mockReturnValue({ docType: 'CONTRATO' });
+      mockRetrievalService.findSimilarChunks.mockResolvedValue([STRUCTURAL_HIT]);
+
+      const service = await createService();
+      await collectEvents(service, LONG_PREFIX);
+
+      expect(mockRetrievalService.findSimilarChunks).toHaveBeenCalledWith(
+        WORKSPACE_ID,
+        expect.any(Array),
+        { filters: { docType: 'CONTRATO' } },
+      );
+    });
+
+    it('retries without filters when first call returns empty results (fallback)', async () => {
+      mockMetadataAwareRetrieval.detectFilters.mockReturnValue({ docType: 'CONTRATO' });
+      // First call (with filters) returns empty, second (without) returns a hit
+      mockRetrievalService.findSimilarChunks
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([STRUCTURAL_HIT]);
+
+      const service = await createService();
+      await collectEvents(service, LONG_PREFIX);
+
+      expect(mockRetrievalService.findSimilarChunks).toHaveBeenCalledTimes(2);
+      // First call: with filters
+      expect(mockRetrievalService.findSimilarChunks).toHaveBeenNthCalledWith(
+        1,
+        WORKSPACE_ID,
+        expect.any(Array),
+        { filters: { docType: 'CONTRATO' } },
+      );
+      // Second call: without filters (fallback)
+      expect(mockRetrievalService.findSimilarChunks).toHaveBeenNthCalledWith(
+        2,
+        WORKSPACE_ID,
+        expect.any(Array),
+      );
+    });
+
+    it('does NOT retry without filters when detectFilters returns null', async () => {
+      mockMetadataAwareRetrieval.detectFilters.mockReturnValue(null);
+      mockRetrievalService.findSimilarChunks.mockResolvedValue([]);
+
+      const service = await createService();
+      await collectEvents(service, LONG_PREFIX);
+
+      // Only one call — no fallback needed when no filters were applied
+      expect(mockRetrievalService.findSimilarChunks).toHaveBeenCalledTimes(1);
+    });
   });
 });

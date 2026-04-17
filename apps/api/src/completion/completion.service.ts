@@ -19,6 +19,7 @@ import { QUERY_EMBEDDING, type QueryEmbeddingPort } from '../retrieval/query-emb
 import { PromptAssembler } from './prompt-assembler';
 import { ProviderRouter } from '../provider/provider-router.service';
 import { StructuralMatchService } from './structural-match.service';
+import { MetadataAwareRetrievalService } from './metadata-aware-retrieval.service';
 import { mapToErrorCode, getErrorMessage, ErrorCode } from '../errors';
 
 /**
@@ -56,6 +57,7 @@ export class CompletionService {
     private readonly promptAssembler: PromptAssembler,
     private readonly providerRouter: ProviderRouter,
     private readonly structuralMatchService: StructuralMatchService,
+    private readonly metadataAwareRetrieval: MetadataAwareRetrievalService,
   ) {}
 
   /**
@@ -193,10 +195,22 @@ export class CompletionService {
           queryEmbedding = await this.queryEmbedding.embed(queryText);
 
           if (queryEmbedding) {
+            // Detect metadata filters from the prefix
+            const metadataFilter = this.metadataAwareRetrieval.detectFilters(payload.prefix);
+
             evidence = await this.retrievalService.findSimilarChunks(
               workspaceId,
               queryEmbedding,
+              { filters: metadataFilter ?? undefined },
             );
+
+            // Fallback: if filters were applied but got 0 hits, retry without filters
+            if (metadataFilter && evidence.length === 0) {
+              evidence = await this.retrievalService.findSimilarChunks(
+                workspaceId,
+                queryEmbedding,
+              );
+            }
           } else {
             this.logger.warn('[Completion] RAG retrieval skipped — no query embedding (check OPENAI_API_KEY in API env)');
           }

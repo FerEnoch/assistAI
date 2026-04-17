@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { RETRIEVAL_CONFIG, EMBEDDING_CONFIG } from '@assistai/shared';
-import type { RetrievalHit } from '@assistai/shared';
+import type { RetrievalHit, MetadataFilter } from '@assistai/shared';
 
 /**
  * Retrieval query service — workspace-scoped vector similarity search (A-053).
@@ -34,6 +34,7 @@ export class RetrievalService {
     options?: {
       topK?: number;
       similarityThreshold?: number;
+      filters?: MetadataFilter | null;
     },
   ): Promise<RetrievalHit[]> {
     const topK = options?.topK ?? RETRIEVAL_CONFIG.topK;
@@ -60,21 +61,36 @@ export class RetrievalService {
 
         // Cosine distance: <=> returns distance (0 = identical, 2 = opposite)
         // Similarity = 1 - distance
+        // Build params array dynamically to support optional metadata filter
+        const params: unknown[] = [vectorLiteral, workspaceId, threshold, topK];
+        let metadataClause = '';
+
+        if (options?.filters) {
+          const filterObj = Object.fromEntries(
+            Object.entries(options.filters).filter(([_, v]) => v !== undefined),
+          );
+          if (Object.keys(filterObj).length > 0) {
+            params.push(JSON.stringify(filterObj));
+            metadataClause = `\n            AND dc.metadata @> $${params.length}::jsonb`;
+          }
+        }
+
         const rows = await manager.query(
           `SELECT
             dc.id AS "chunkId",
             dc.document_id AS "documentId",
             dc.content,
+            dc.metadata,
             (1 - (dc.embedding <=> $1::vector)) AS similarity,
             d.title AS "documentTitle"
           FROM document_chunks dc
           JOIN documents d ON d.id = dc.document_id
           WHERE dc.workspace_id = $2
             AND dc.embedding IS NOT NULL
-            AND (1 - (dc.embedding <=> $1::vector)) >= $3
+            AND (1 - (dc.embedding <=> $1::vector)) >= $3${metadataClause}
           ORDER BY dc.embedding <=> $1::vector
           LIMIT $4`,
-          [vectorLiteral, workspaceId, threshold, topK],
+          params,
         );
 
         const latencyMs = Date.now() - startMs;
@@ -100,6 +116,7 @@ export class RetrievalService {
           content: row.content as string,
           similarity: Number(row.similarity),
           documentTitle: (row.documentTitle as string | null) ?? null,
+          metadata: (row.metadata as Record<string, unknown> | null) ?? null,
         }));
       });
     } catch (err) {

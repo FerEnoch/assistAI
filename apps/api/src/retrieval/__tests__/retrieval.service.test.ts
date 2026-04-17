@@ -157,6 +157,7 @@ describe('RetrievalService', () => {
         content: 'Artículo 123 del Código Civil',
         similarity: 0.89,
         documentTitle: 'Código Civil Argentino',
+        metadata: null,
       });
     });
 

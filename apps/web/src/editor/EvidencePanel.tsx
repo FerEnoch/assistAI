@@ -103,11 +103,11 @@ export function EvidencePanel({ isOpen, onToggle, isGrounded, hits, structuralMa
 function EvidenceHitCard({ hit, isStructural }: { hit: EvidenceHit; isStructural?: boolean }) {
   const relevancePercent = Math.round(hit.similarity * 100);
 
-  // Color based on relevance
-  const getRelevanceColor = (): string => {
-    if (relevancePercent >= 85) return 'var(--success)';
-    if (relevancePercent >= 75) return 'var(--warning)';
-    return 'var(--error)';
+  // Relevance badge colors per design system
+  const getRelevanceBadgeStyle = (): { backgroundColor: string; color: string } => {
+    if (relevancePercent >= 80) return { backgroundColor: 'var(--relevance-high-bg)', color: 'var(--text-primary)' };
+    if (relevancePercent >= 60) return { backgroundColor: 'var(--relevance-mid-bg)', color: 'var(--text-primary)' };
+    return { backgroundColor: 'var(--relevance-low-bg)', color: 'var(--text-primary)' };
   };
 
   return (
@@ -124,8 +124,7 @@ function EvidenceHitCard({ hit, isStructural }: { hit: EvidenceHit; isStructural
         </div>
         <span style={{
           ...styles.relevanceBadge,
-          color: getRelevanceColor(),
-          borderColor: getRelevanceColor(),
+          ...getRelevanceBadgeStyle(),
         }}>
           {relevancePercent}%
         </span>
@@ -259,7 +258,8 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0.75rem',
     borderRadius: 'var(--radius-md)',
     border: '1px solid var(--border-subtle)',
-    backgroundColor: 'var(--bg-secondary)',
+    backgroundColor: '#ffffff',
+    boxShadow: 'var(--shadow-sm)',
   },
   hitHeader: {
     display: 'flex',
@@ -292,9 +292,8 @@ const styles: Record<string, React.CSSProperties> = {
   relevanceBadge: {
     fontSize: '0.7rem',
     fontWeight: 700,
-    padding: '0.125rem 0.375rem',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid',
+    padding: '0.125rem 0.5rem',
+    borderRadius: '9999px',
     flexShrink: 0,
   },
   hitMeta: {

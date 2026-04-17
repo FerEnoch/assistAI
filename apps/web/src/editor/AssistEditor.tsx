@@ -184,7 +184,7 @@ const ghostTextStyles = `
   outline: none;
   flex: 1;
   padding: 1.5rem;
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
   line-height: 1.75;
   color: var(--text-primary);
@@ -273,9 +273,10 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'var(--bg-elevated)',
-    borderRadius: 'var(--radius-md)',
+    backgroundColor: '#ffffff',
+    borderRadius: 'var(--radius-lg)',
     border: '1px solid var(--border-subtle)',
+    boxShadow: 'var(--shadow-md)',
     overflow: 'hidden',
   },
   statusBar: {

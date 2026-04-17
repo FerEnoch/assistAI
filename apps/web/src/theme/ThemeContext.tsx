@@ -13,20 +13,8 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = 'assistai_theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved === 'dark' || saved === 'light') return saved;
-      
-      // Check system preference
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark';
-      }
-    } catch {
-      // Ignore errors
-    }
-    return 'light';
-  });
+  // Light mode only — always return 'light' regardless of system preference or storage
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     try {

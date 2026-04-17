@@ -1,46 +1,61 @@
 /**
  * Global Theme CSS Variables
- * Design: Refined, editorial feel for legal writing
+ * Design System: Mockup-accurate light theme for legal writing
+ * Single Source of Truth — light mode only
  */
 
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  /* Brand Accent */
-  --accent-hue: 250;
-  --accent-chroma: 0.12;
-  
-  /* Light Mode - Warm Paper */
-  --bg-primary: oklch(98% 0.005 60);
-  --bg-secondary: oklch(96% 0.008 60);
-  --bg-tertiary: oklch(92% 0.012 60);
-  --bg-elevated: oklch(100% 0 0);
-  
-  --text-primary: oklch(20% 0.015 60);
-  --text-secondary: oklch(45% 0.012 60);
-  --text-tertiary: oklch(65% 0.008 60);
-  --text-on-accent: oklch(100% 0 0);
-  
-  --border-subtle: oklch(90% 0.006 60);
-  --border-default: oklch(80% 0.008 60);
-  
-  --accent-default: oklch(60% 0.12 250);
-  --accent-muted: oklch(75% 0.12 250);
-  --accent-subtle: oklch(90% 0.06 250);
-  
-  --success: oklch(65% 0.15 150);
-  --warning: oklch(75% 0.15 75);
-  --error: oklch(60% 0.18 25);
-  --color-neutral: oklch(55% 0.008 280);
-  --accent-info: oklch(62% 0.14 230);
-  
-  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.05);
-  --shadow-md: 0 4px 12px oklch(0% 0 0 / 0.08);
-  --shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.12);
-  
-  /* Typography */
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  /* ── Typography ── */
+  --font-serif: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  
-  /* Spacing */
+
+  /* ── Backgrounds ── */
+  --bg-primary: #f7f5f0;
+  --bg-secondary: #f0ede8;
+  --bg-tertiary: #e8e4de;
+  --bg-elevated: #ffffff;
+
+  /* ── Text ── */
+  --text-primary: #2a2420;
+  --text-secondary: #6b6560;
+  --text-tertiary: #9e9691;
+  --text-on-accent: #ffffff;
+
+  /* ── Borders ── */
+  --border-subtle: #e8e4de;
+  --border-default: #d4cfc9;
+
+  /* ── Accent / Interactive ── */
+  --accent-default: #5b50e8;
+  --accent-muted: #7b72ed;
+  --accent-subtle: #ede9fc;
+
+  /* ── Semantic Colors ── */
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+  --accent-info: #0284c7;
+  --color-neutral: #6b7280;
+
+  /* ── Relevance Score Backgrounds ── */
+  --relevance-high-bg: #d1fae5;
+  --relevance-mid-bg: #fef3c7;
+  --relevance-low-bg: #fee2e2;
+
+  /* ── Alert Banner Backgrounds ── */
+  --banner-info-bg: #eff6ff;
+  --banner-success-bg: #f0fdf4;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* ── Spacing ── */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -48,50 +63,21 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
   --space-12: 3rem;
-  
-  /* Radius */
+
+  /* ── Radius ── */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  
-  /* Transitions */
+  --radius-pill: 9999px;
+
+  /* ── Transitions ── */
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Dark Mode */
-.dark {
-  --bg-primary: oklch(10% 0.008 280);
-  --bg-secondary: oklch(14% 0.01 280);
-  --bg-tertiary: oklch(20% 0.012 280);
-  --bg-elevated: oklch(8% 0.006 280);
-  
-  --text-primary: oklch(92% 0.005 60);
-  --text-secondary: oklch(70% 0.008 60);
-  --text-tertiary: oklch(55% 0.006 60);
-  --text-on-accent: oklch(100% 0 0);
-  
-  --border-subtle: oklch(30% 0.008 280);
-  --border-default: oklch(40% 0.01 280);
-  
-  --accent-default: oklch(70% 0.12 250);
-  --accent-muted: oklch(55% 0.12 250);
-  --accent-subtle: oklch(40% 0.06 250);
-  
-  --success: oklch(75% 0.15 150);
-  --warning: oklch(80% 0.15 75);
-  --error: oklch(70% 0.18 25);
-  --color-neutral: oklch(65% 0.008 280);
-  --accent-info: oklch(72% 0.14 230);
-  
-  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.3);
-  --shadow-md: 0 4px 12px oklch(0% 0 0 / 0.4);
-  --shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.5);
-}
-
-/* Base Reset */
+/* ── Base Reset ── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -110,23 +96,21 @@ body {
   line-height: 1.5;
   color: var(--text-primary);
   background-color: var(--bg-primary);
-  transition: background-color var(--duration-normal) var(--ease-out),
-              color var(--duration-normal) var(--ease-out);
 }
 
-/* Focus */
+/* ── Focus ── */
 :focus-visible {
   outline: 2px solid var(--accent-default);
   outline-offset: 2px;
 }
 
-/* Selection */
+/* ── Selection ── */
 ::selection {
   background-color: var(--accent-subtle);
   color: var(--text-primary);
 }
 
-/* Scrollbar */
+/* ── Scrollbar ── */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -145,7 +129,7 @@ body {
   background: var(--text-tertiary);
 }
 
-/* Links */
+/* ── Links ── */
 a {
   color: var(--accent-default);
   text-decoration: none;
@@ -156,7 +140,7 @@ a:hover {
   color: var(--accent-muted);
 }
 
-/* Buttons */
+/* ── Buttons ── */
 button {
   font-family: inherit;
   font-size: inherit;
@@ -165,12 +149,12 @@ button {
   background: none;
 }
 
-/* Inputs */
+/* ── Inputs ── */
 input, textarea, select {
   font-family: inherit;
   font-size: inherit;
   color: var(--text-primary);
-  background-color: var(--bg-secondary);
+  background-color: #ffffff;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);

@@ -20,7 +20,7 @@ export function DocumentTypeBadge({ docType }: DocumentTypeBadgeProps) {
       textTransform: 'uppercase',
       color: 'var(--accent-default)',
       border: '1px solid var(--accent-default)',
-      borderRadius: 'var(--radius-sm)',
+      borderRadius: '9999px',
       backgroundColor: 'transparent',
     }}>
       {docType}

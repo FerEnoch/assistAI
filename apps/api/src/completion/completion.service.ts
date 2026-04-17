@@ -1,12 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Observable, Subject } from 'rxjs';
 import {
   EditorSession,
   CompletionRequest,
   CompletionRetrievalHit,
 } from '@assistai/entities';
+import { TemplateSection } from '@assistai/entities/src/template-section.entity';
 import {
   COMPLETION_CONFIG,
   PROVIDER_CONFIG,
@@ -51,7 +52,8 @@ export class CompletionService {
     private readonly completionRepo: Repository<CompletionRequest>,
     @InjectRepository(CompletionRetrievalHit)
     private readonly hitRepo: Repository<CompletionRetrievalHit>,
-    private readonly dataSource: DataSource,
+    @InjectRepository(TemplateSection)
+    private readonly templateSectionRepo: Repository<TemplateSection>,
     private readonly retrievalService: RetrievalService,
     @Inject(QUERY_EMBEDDING) private readonly queryEmbedding: QueryEmbeddingPort,
     private readonly promptAssembler: PromptAssembler,
@@ -251,28 +253,23 @@ export class CompletionService {
       // the structural path (template sections have similarity 1.0).
       if (payload.templateId) {
         try {
-          const rows: Array<{
-            id: string;
-            templateId: string;
-            name: string;
-            content: string;
-            workspaceId: string;
-          }> = await this.dataSource.query(
-            `SELECT ts.id, ts.template_id AS "templateId", ts.name, ts.content, t.workspace_id AS "workspaceId"
-             FROM template_sections ts
-             JOIN templates t ON t.id = ts.template_id
-             WHERE ts.template_id = $1 AND t.workspace_id = $2
-             ORDER BY ts.section_index ASC`,
-            [payload.templateId, workspaceId],
+          const sections = await this.templateSectionRepo.find({
+            where: { templateId: payload.templateId },
+            relations: { template: true },
+            order: { sectionIndex: 'ASC' },
+          });
+
+          const validSections = sections.filter(
+            (s) => s.template?.workspaceId === workspaceId,
           );
 
-          if (rows.length > 0) {
-            const templateHits: RetrievalHit[] = rows.map((row) => ({
-              chunkId: row.id,
-              documentId: row.templateId,
-              content: row.content,
+          if (validSections.length > 0) {
+            const templateHits: RetrievalHit[] = validSections.map((section) => ({
+              chunkId: section.id,
+              documentId: section.templateId,
+              content: section.content,
               similarity: 1.0,
-              documentTitle: row.name,
+              documentTitle: section.name,
               metadata: {
                 isTemplate: true,
                 sourceTemplateId: payload.templateId!,

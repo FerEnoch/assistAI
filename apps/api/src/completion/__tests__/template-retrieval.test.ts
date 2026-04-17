@@ -7,7 +7,7 @@ import type { SseMessageEvent } from '../completion.service';
  *
  * Validates that templateId in the payload:
  * - Loads template sections and prepends them as high-priority evidence
- * - Silently ignores templates from other workspaces (SQL filters by workspace_id)
+ * - Silently ignores templates from other workspaces (repo filters by workspace_id via JOIN)
  * - Does not regress when templateId is omitted
  */
 describe('CompletionService — template-aware retrieval', () => {
@@ -27,7 +27,7 @@ describe('CompletionService — template-aware retrieval', () => {
   let mockSessionRepo: Record<string, ReturnType<typeof vi.fn>>;
   let mockCompletionRepo: Record<string, ReturnType<typeof vi.fn>>;
   let mockHitRepo: Record<string, ReturnType<typeof vi.fn>>;
-  let mockDataSource: Record<string, ReturnType<typeof vi.fn>>;
+  let mockTemplateSectionRepo: Record<string, ReturnType<typeof vi.fn>>;
   let mockRetrievalService: Record<string, ReturnType<typeof vi.fn>>;
   let mockQueryEmbedding: Record<string, ReturnType<typeof vi.fn>>;
   let mockPromptAssembler: Record<string, ReturnType<typeof vi.fn>>;
@@ -49,9 +49,8 @@ describe('CompletionService — template-aware retrieval', () => {
       create: vi.fn().mockImplementation((data) => data),
       save: vi.fn().mockResolvedValue(undefined),
     };
-    mockDataSource = {
-      query: vi.fn().mockResolvedValue([]),
-      transaction: vi.fn(),
+    mockTemplateSectionRepo = {
+      find: vi.fn().mockResolvedValue([]),
     };
 
     mockRetrievalService = {
@@ -101,7 +100,7 @@ describe('CompletionService — template-aware retrieval', () => {
       mockSessionRepo as any,
       mockCompletionRepo as any,
       mockHitRepo as any,
-      mockDataSource as any,
+      mockTemplateSectionRepo as any,
       mockRetrievalService as any,
       mockQueryEmbedding as any,
       mockPromptAssembler as any,
@@ -136,23 +135,25 @@ describe('CompletionService — template-aware retrieval', () => {
   // ─── Template sections appear first in evidence ────────────────────────────
 
   it('prepends template sections as high-priority evidence when templateId is valid', async () => {
-    mockDataSource.query.mockResolvedValue([
+    mockTemplateSectionRepo.find.mockResolvedValue([
       {
         id: 'sec-1',
         templateId: TEMPLATE_ID,
         name: 'Encabezado',
         content: 'Template section content',
-        workspaceId: WORKSPACE_ID,
+        sectionIndex: 0,
+        template: { workspaceId: WORKSPACE_ID },
       },
     ]);
 
     const service = await createService();
     await collectEvents(service, LONG_PREFIX, TEMPLATE_ID);
 
-    // dataSource.query should be called for template sections
-    expect(mockDataSource.query).toHaveBeenCalledWith(
-      expect.stringContaining('template_sections'),
-      [TEMPLATE_ID, WORKSPACE_ID],
+    // templateSectionRepo.find should be called with correct filters
+    expect(mockTemplateSectionRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ templateId: TEMPLATE_ID }),
+      }),
     );
 
     // assemblePrompt should be called with template hits FIRST
@@ -170,18 +171,18 @@ describe('CompletionService — template-aware retrieval', () => {
     expect(evidenceArg[1].chunkId).toBe('chunk-1');
   });
 
-  // ─── Template from another workspace is silently ignored (SQL WHERE filters) ──
+  // ─── Template from another workspace is silently ignored ──────────────────
 
   it('returns no template hits when template belongs to a different workspace (SQL filters)', async () => {
-    // SQL WHERE clause includes workspace_id, so mismatched workspace returns empty
-    mockDataSource.query.mockResolvedValue([]);
+    // repo.find returns empty because workspace filter yields no results
+    mockTemplateSectionRepo.find.mockResolvedValue([]);
 
     const service = await createService();
     await collectEvents(service, LONG_PREFIX, TEMPLATE_ID);
 
     const evidenceArg = mockPromptAssembler.assemblePrompt.mock.calls[0][1] as RetrievalHit[];
 
-    // Only normal hit — no template sections returned by query
+    // Only normal hit — no template sections returned
     expect(evidenceArg.length).toBe(1);
     expect(evidenceArg[0].chunkId).toBe('chunk-1');
   });
@@ -192,8 +193,8 @@ describe('CompletionService — template-aware retrieval', () => {
     const service = await createService();
     await collectEvents(service, LONG_PREFIX);
 
-    // dataSource.query should NOT be called for template sections
-    expect(mockDataSource.query).not.toHaveBeenCalled();
+    // templateSectionRepo.find should NOT be called
+    expect(mockTemplateSectionRepo.find).not.toHaveBeenCalled();
 
     const evidenceArg = mockPromptAssembler.assemblePrompt.mock.calls[0][1] as RetrievalHit[];
     expect(evidenceArg.length).toBe(1);

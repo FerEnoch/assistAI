@@ -33,8 +33,8 @@ export class Document {
   @JoinColumn({ name: 'workspace_id' })
   workspace?: Workspace;
 
-  @Column({ type: 'uuid', name: 'source_id' })
-  sourceId!: string;
+  @Column({ type: 'uuid', name: 'source_id', nullable: true })
+  sourceId?: string | null;
 
   @ManyToOne(() => ContentSource, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'source_id' })

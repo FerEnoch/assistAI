@@ -11,6 +11,7 @@ import { CompletionModule } from './completion/completion.module';
 import { SecurityModule } from './security/security.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { WorkspaceModule } from './workspace/workspace.module';
+import { TemplateModule } from './template/template.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     CompletionModule,
     SecurityModule,
     WorkspaceModule,
+    TemplateModule,
   ],
 })
 export class AppModule {}

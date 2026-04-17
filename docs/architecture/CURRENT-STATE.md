@@ -136,6 +136,7 @@ See `.env.example` for complete list.
 | CORS mismatch frontend→API | Use Vite proxy in dev (`/api` relative) | 2026-04-03 |
 | connect-redis + ioredis incompatibility | Replaced with official `redis` client | 2026-04-03 |
 | Technical errors exposed to users | Added GlobalExceptionFilter | 2026-04-03 |
+| TS5055: `tsc` refusing to overwrite `dist/*.d.ts` as input files | Test file inside `packages/shared` was importing from `@assistai/shared` (the package itself), causing TypeScript to include `dist/` as input. Fixed by replacing the self-referential import with a relative path (`../../index`). | 2026-04-17 |
 
 ---
 

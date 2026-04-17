@@ -13,7 +13,7 @@ import {
   createAnalyticsEvent,
   initTracing,
   createSpanContext,
-} from '@assistai/shared';
+} from '../../index';
 
 /**
  * Sprint 6 — Observability & Beta Operations tests.

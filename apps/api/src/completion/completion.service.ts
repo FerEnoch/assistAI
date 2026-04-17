@@ -246,6 +246,53 @@ export class CompletionService {
         return; // early return — skip LLM
       }
 
+      // Step 2.5: Template-aware retrieval — merge template sections with priority
+      // Placed AFTER structural match gate to avoid template hits triggering
+      // the structural path (template sections have similarity 1.0).
+      if (payload.templateId) {
+        try {
+          const rows: Array<{
+            id: string;
+            templateId: string;
+            name: string;
+            content: string;
+            workspaceId: string;
+          }> = await this.dataSource.query(
+            `SELECT ts.id, ts.template_id AS "templateId", ts.name, ts.content, t.workspace_id AS "workspaceId"
+             FROM template_sections ts
+             JOIN templates t ON t.id = ts.template_id
+             WHERE ts.template_id = $1 AND t.workspace_id = $2
+             ORDER BY ts.section_index ASC`,
+            [payload.templateId, workspaceId],
+          );
+
+          if (rows.length > 0) {
+            const templateHits: RetrievalHit[] = rows.map((row) => ({
+              chunkId: row.id,
+              documentId: row.templateId,
+              content: row.content,
+              similarity: 1.0,
+              documentTitle: row.name,
+              metadata: {
+                isTemplate: true,
+                sourceTemplateId: payload.templateId!,
+                docType: null,
+                section: null,
+                clauseType: null,
+                tags: [],
+              },
+            }));
+
+            evidence = [...templateHits, ...evidence];
+          }
+        } catch (err) {
+          // Template retrieval failure is non-fatal — continue with normal evidence
+          this.logger.warn(
+            `[Completion] Template retrieval failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
       // Emit retrieval metadata
       subject.next({
         type: 'meta',

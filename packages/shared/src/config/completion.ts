@@ -190,6 +190,8 @@ export interface CompletionRequestPayload {
   sessionId: string;
   /** Cursor position in the document */
   cursorPosition: number;
+  /** Optional template ID — prioritizes template sections in retrieval */
+  templateId?: string;
 }
 
 /**

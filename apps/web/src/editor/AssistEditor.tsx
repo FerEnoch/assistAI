@@ -5,6 +5,9 @@ import { useEditorSession } from './use-editor-session';
 import { useEditorSetup } from './use-editor-setup';
 import { EvidencePanel } from './EvidencePanel';
 import { DocumentTypeBadge } from './DocumentTypeBadge';
+import { useTemplates } from '../hooks/useTemplates';
+import { useActiveTemplate } from './use-active-template';
+import { TemplateSelector } from './TemplateSelector';
 
 /**
  * AssistAI Editor — Tiptap-based writing editor with inline completions (A-060 through A-065, A-081).
@@ -15,12 +18,17 @@ import { DocumentTypeBadge } from './DocumentTypeBadge';
 export function AssistEditor() {
   const [evidencePanelOpen, setEvidencePanelOpen] = useState(false);
   const { sessionId, isCreatingSession } = useEditorSession();
+  const { templates } = useTemplates();
+  const { activeTemplateId, setActiveTemplate } = useActiveTemplate();
   const { editor, status, error, evidence, clearEvidence, updateEvidence } =
     useEditorSetup({
       sessionId,
       evidencePanelOpen,
+      activeTemplateId,
       onEvidenceWithHits: () => setEvidencePanelOpen(true),
     });
+
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId) ?? null;
 
   const toggleEvidencePanel = useCallback(() => {
     setEvidencePanelOpen((prev) => !prev);
@@ -39,13 +47,33 @@ export function AssistEditor() {
 
   return (
     <div style={styles.outerContainer}>
-      <div style={styles.container}>
-        {/* Document type badge */}
-        {evidence.docType && (
-          <div style={{ padding: '0.25rem 0.75rem 0' }}>
-            <DocumentTypeBadge docType={evidence.docType} />
-          </div>
-        )}
+      {/* Page header — outside editor card */}
+      <div style={styles.pageHeaderRow}>
+        <div style={styles.pageHeader}>
+          <span style={styles.logo}>AssistAI</span>
+          <TemplateSelector
+            templates={templates}
+            activeTemplateId={activeTemplateId}
+            onSelect={setActiveTemplate}
+          />
+        </div>
+      </div>
+
+      <div style={styles.editorArea}>
+        <div style={styles.container}>
+          {/* Template info banner */}
+          {activeTemplate && (
+            <div style={styles.templateBanner}>
+              Completando con estructura de: <strong>{activeTemplate.name}</strong>
+            </div>
+          )}
+
+          {/* Document type badge */}
+          {evidence.docType && (
+            <div style={{ padding: '0.25rem 0.75rem 0' }}>
+              <DocumentTypeBadge docType={evidence.docType} />
+            </div>
+          )}
 
         {/* Status bar */}
         <StatusBar
@@ -73,6 +101,7 @@ export function AssistEditor() {
         structuralMatch={evidence.structuralMatch}
         docType={evidence.docType}
       />
+      </div>
     </div>
   );
 }
@@ -248,6 +277,29 @@ const ghostTextStyles = `
 const styles: Record<string, React.CSSProperties> = {
   outerContainer: {
     display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  pageHeaderRow: {
+    padding: '0.75rem 1rem',
+    flexShrink: 0,
+  },
+  pageHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  logo: {
+    fontFamily: 'var(--font-serif)',
+    fontSize: '1.375rem',
+    fontWeight: 700,
+    color: 'var(--accent-default)',
+    letterSpacing: '-0.01em',
+  },
+  editorArea: {
+    display: 'flex',
     flex: 1,
     minHeight: 0,
     overflow: 'hidden',
@@ -257,6 +309,15 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     flex: 1,
     minWidth: 0,
+  },
+  templateBanner: {
+    padding: '0.625rem 0.75rem',
+    fontSize: '0.8125rem',
+    color: 'var(--accent-info)',
+    backgroundColor: '#eff6ff',
+    borderLeft: '4px solid #0284c7',
+    borderRadius: 'var(--radius-sm)',
+    marginBottom: '0.5rem',
   },
   loading: {
     display: 'flex',

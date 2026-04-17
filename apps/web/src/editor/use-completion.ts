@@ -17,6 +17,8 @@ interface UseCompletionOptions {
   editor: Editor | null;
   sessionId: string | null;
   enabled?: boolean;
+  /** Active template ID to include in completion requests */
+  templateId?: string | null;
   /** Callback when evidence data is received from the done event */
   onEvidenceReceived?: (data: {
     completionId: string;
@@ -48,6 +50,7 @@ export function useCompletion({
   editor,
   sessionId,
   enabled = true,
+  templateId,
   onEvidenceReceived,
 }: UseCompletionOptions) {
   const [state, setState] = useState<CompletionState>({
@@ -126,6 +129,7 @@ export function useCompletion({
           prefix,
           sessionId,
           cursorPosition: from,
+          templateId: templateId ?? undefined,
         }),
       });
 
@@ -290,7 +294,7 @@ export function useCompletion({
         error: err instanceof Error ? err.message : 'Error de conexión',
       });
     }
-  }, [editor, sessionId, enabled, onEvidenceReceived]);
+  }, [editor, sessionId, enabled, templateId, onEvidenceReceived]);
 
   /**
    * Trigger completion after debounce period (A-064).

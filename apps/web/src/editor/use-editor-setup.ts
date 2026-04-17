@@ -14,6 +14,8 @@ const STORAGE_KEY = 'assistai_editor_content';
 export interface EditorSetupOptions {
   sessionId: string | null;
   evidencePanelOpen: boolean;
+  /** Active template ID for completion requests */
+  activeTemplateId?: string | null;
   /** Called when a completion returns at least one retrieval hit — used to auto-open the panel */
   onEvidenceWithHits?: () => void;
 }
@@ -36,7 +38,7 @@ export interface EditorSetupState {
  * useEffect MUST all live in this single hook. Separating them would
  * break the stable-closure pattern that prevents editor re-creation.
  */
-export function useEditorSetup({ sessionId, evidencePanelOpen, onEvidenceWithHits }: EditorSetupOptions): EditorSetupState {
+export function useEditorSetup({ sessionId, evidencePanelOpen, activeTemplateId, onEvidenceWithHits }: EditorSetupOptions): EditorSetupState {
   // ── Evidence panel state (A-081) ──
   const { evidence, updateEvidence, clearEvidence } = useEvidence({
     isOpen: evidencePanelOpen,
@@ -109,6 +111,7 @@ export function useEditorSetup({ sessionId, evidencePanelOpen, onEvidenceWithHit
     editor,
     sessionId,
     enabled: !!sessionId,
+    templateId: activeTemplateId,
     onEvidenceReceived: (data) => {
       updateEvidence(data);
       if (data.retrievalHits.length > 0) {

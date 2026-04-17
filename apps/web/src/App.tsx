@@ -3,6 +3,7 @@ import { LoginPage } from './pages/LoginPage';
 import { VerifyPage } from './pages/VerifyPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { EditorPage } from './pages/EditorPage';
+import { LibraryPage } from './pages/LibraryPage';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { ThemeProvider, useTheme } from './theme/ThemeContext';
 import { useAuth as useAuthContext } from './auth/AuthContext';
@@ -79,6 +80,16 @@ export function App() {
                 <ProtectedRoute>
                   <AuthLayout>
                     <DashboardPage />
+                  </AuthLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <ProtectedRoute>
+                  <AuthLayout>
+                    <LibraryPage />
                   </AuthLayout>
                 </ProtectedRoute>
               }

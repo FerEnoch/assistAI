@@ -14,11 +14,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "ignoreDeprecations": "5.0",
-    "baseUrl": ".",
-    "paths": {
-      "@assistai/shared": ["packages/shared/src"],
-      "@assistai/shared/*": ["packages/shared/src/*"]
-    }
+    "baseUrl": "."
   },
   "exclude": ["node_modules", "dist"]
 }

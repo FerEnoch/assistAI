@@ -9,7 +9,16 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "composite": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@assistai/shared": ["../shared"],
+      "@assistai/shared/*": ["../shared/*"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["dist"],
+  "references": [{ "path": "../shared" }]
 }

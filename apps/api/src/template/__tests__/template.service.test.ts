@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NotFoundException } from '@nestjs/common';
+import { TemplateService } from '../template.service';
 
 // Mock the decorators to avoid barrel-file circular dependency
 vi.mock('@nestjs/typeorm', () => ({
@@ -8,9 +9,6 @@ vi.mock('@nestjs/typeorm', () => ({
 vi.mock('@nestjs/bullmq', () => ({
   InjectQueue: () => () => undefined,
 }));
-
-// Now import the service (decorators are no-ops)
-const { TemplateService } = await import('../template.service');
 
 describe('TemplateService', () => {
   let service: InstanceType<typeof TemplateService>;

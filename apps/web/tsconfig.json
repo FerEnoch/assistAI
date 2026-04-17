@@ -9,12 +9,15 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "noEmit": true,
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@assistai/shared": ["../../packages/shared/src"],
-      "@assistai/shared/*": ["../../packages/shared/src/*"]
+      "@assistai/shared": ["../../packages/shared"],
+      "@assistai/shared/*": ["../../packages/shared/*"]
     }
   },
   "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "../../packages/shared" }]
 }

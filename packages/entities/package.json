@@ -9,6 +9,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "@assistai/shared": "workspace:*"
+  },
   "peerDependencies": {
     "typeorm": "0.3.0"
   },

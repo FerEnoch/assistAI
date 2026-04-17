@@ -43,7 +43,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       update: vi.fn().mockResolvedValue(undefined),
     };
     const mockHitRepo = { create: vi.fn(), save: vi.fn() };
-    const mockDataSource = {};
+    const mockTemplateSectionRepo = { find: vi.fn().mockResolvedValue([]) };
     const mockRetrieval = { findSimilarChunks: vi.fn().mockResolvedValue([]) };
     const mockEmbedding = { embed: vi.fn().mockResolvedValue(null) };
     const mockAssembler = {
@@ -74,16 +74,21 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       streamTokens: vi.fn(),
     };
 
+    const mockMetadataAwareRetrieval = {
+      detectFilters: vi.fn().mockReturnValue(null),
+    };
+
     const service = new CompletionService(
       mockSessionRepo as any,
       mockCompletionRepo as any,
       mockHitRepo as any,
-      mockDataSource as any,
+      mockTemplateSectionRepo as any,
       mockRetrieval as any,
       mockEmbedding as any,
       mockAssembler as any,
       mockRouter as any,
       mockStructuralMatch as any,
+      mockMetadataAwareRetrieval as any,
     );
 
     const ac = new AbortController();
@@ -147,6 +152,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
       } as any,
       mockRouter as any,
       { findMatch: vi.fn().mockResolvedValue(null), streamTokens: vi.fn() } as any,
+      { detectFilters: vi.fn().mockReturnValue(null) } as any,
     );
 
     const ac = new AbortController();
@@ -211,6 +217,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
         }),
       } as any,
       { findMatch: vi.fn().mockResolvedValue(null), streamTokens: vi.fn() } as any,
+      { detectFilters: vi.fn().mockReturnValue(null) } as any,
     );
 
     const ac = new AbortController();
@@ -270,6 +277,7 @@ describe('CompletionService abort handling (REQ-6, REQ-7)', () => {
         }),
       } as any,
       { findMatch: vi.fn().mockResolvedValue(null), streamTokens: vi.fn() } as any,
+      { detectFilters: vi.fn().mockReturnValue(null) } as any,
     );
 
     // No signal — normal flow

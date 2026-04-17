@@ -8,14 +8,17 @@
     "rootDir": "./src",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "declaration": false,
-    "declarationMap": false,
+    "composite": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "baseUrl": ".",
     "paths": {
-      "@assistai/shared": ["../../packages/shared/src"],
-      "@assistai/shared/*": ["../../packages/shared/src/*"],
-      "@assistai/entities": ["../../packages/entities/src"],
-      "@assistai/entities/*": ["../../packages/entities/src/*"]
+      "@assistai/shared": ["../../packages/shared"],
+      "@assistai/shared/*": ["../../packages/shared/*"],
+      "@assistai/entities": ["../../packages/entities"],
+      "@assistai/entities/*": ["../../packages/entities/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["dist"],
+  "references": [{ "path": "../../packages/shared" }, { "path": "../../packages/entities" }]
 }

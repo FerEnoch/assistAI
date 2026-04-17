@@ -14,7 +14,11 @@ describe('DocumentService (A-045, A-046)', () => {
       createQueryBuilder: vi.fn(),
     };
 
-    service = new DocumentService(documentRepo as never);
+    const chunkRepo = {
+      createQueryBuilder: vi.fn(),
+    };
+
+    service = new DocumentService(documentRepo as never, chunkRepo as never);
   });
 
   describe('getDocuments', () => {

@@ -6,8 +6,8 @@ import {
   EditorSession,
   CompletionRequest,
   CompletionRetrievalHit,
+  TemplateSection,
 } from '@assistai/entities';
-import { TemplateSection } from '@assistai/entities/src/template-section.entity';
 import {
   COMPLETION_CONFIG,
   PROVIDER_CONFIG,

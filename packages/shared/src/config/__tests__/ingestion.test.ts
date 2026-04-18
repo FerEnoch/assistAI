@@ -67,9 +67,9 @@ describe('Ingestion Constants', () => {
   });
 
   describe('EMBEDDING_CONFIG', () => {
-    it('should use qwen/qwen3-embedding-8b with 1024 dimensions', () => {
+    it('should use qwen/qwen3-embedding-8b with 2000 dimensions', () => {
       expect(EMBEDDING_CONFIG.model).toBe('qwen/qwen3-embedding-8b');
-      expect(EMBEDDING_CONFIG.dimensions).toBe(1024);
+      expect(EMBEDDING_CONFIG.dimensions).toBe(2000);
     });
   });
 

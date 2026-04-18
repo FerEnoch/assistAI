@@ -100,5 +100,5 @@ export const CHUNKING_CONFIG = {
  */
 export const EMBEDDING_CONFIG = {
   model: 'qwen/qwen3-embedding-8b',
-  dimensions: 1024,
+  dimensions: 2000,
 } as const;

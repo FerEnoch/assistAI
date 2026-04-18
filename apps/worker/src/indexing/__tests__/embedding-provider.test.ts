@@ -25,8 +25,8 @@ describe('OpenAIEmbeddingProvider', () => {
 
   it('should have correct provider metadata', () => {
     expect(provider.providerName).toBe('openai');
-    expect(provider.modelVersion).toBe('text-embedding-3-small-1024d');
-    expect(provider.dimensions).toBe(1024);
+    expect(provider.modelVersion).toBe('qwen/qwen3-embedding-8b-2000d');
+    expect(provider.dimensions).toBe(2000);
   });
 
   it('should return empty array for empty input', async () => {
@@ -36,7 +36,7 @@ describe('OpenAIEmbeddingProvider', () => {
   });
 
   it('should call OpenAI API with correct parameters', async () => {
-    const fakeEmbedding = Array.from({ length: 1024 }, (_, i) => i * 0.001);
+    const fakeEmbedding = Array.from({ length: 2000 }, (_, i) => i * 0.001);
     mockCreate.mockResolvedValue({
       data: [
         { index: 0, embedding: fakeEmbedding },
@@ -47,19 +47,19 @@ describe('OpenAIEmbeddingProvider', () => {
     const result = await provider.embedBatch(['hello', 'world']);
 
     expect(mockCreate).toHaveBeenCalledWith({
-      model: 'text-embedding-3-small',
-      dimensions: 1024,
+      model: 'qwen/qwen3-embedding-8b',
+      dimensions: 2000,
       input: ['hello', 'world'],
     });
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toHaveLength(1024);
-    expect(result[1]).toHaveLength(1024);
+    expect(result[0]).toHaveLength(2000);
+    expect(result[1]).toHaveLength(2000);
   });
 
   it('should sort results by index to guarantee order', async () => {
-    const emb1 = Array.from({ length: 1024 }, () => 0.1);
-    const emb2 = Array.from({ length: 1024 }, () => 0.2);
+    const emb1 = Array.from({ length: 2000 }, () => 0.1);
+    const emb2 = Array.from({ length: 2000 }, () => 0.2);
 
     // Return in wrong order
     mockCreate.mockResolvedValue({
@@ -76,9 +76,9 @@ describe('OpenAIEmbeddingProvider', () => {
     expect(result[1][0]).toBeCloseTo(0.2);
   });
 
-  it('should output array shape [n][1024] (A-051)', async () => {
+  it('should output array shape [n][2000] (A-051)', async () => {
     const n = 5;
-    const fakeEmbedding = Array.from({ length: 1024 }, () => Math.random());
+    const fakeEmbedding = Array.from({ length: 2000 }, () => Math.random());
     mockCreate.mockResolvedValue({
       data: Array.from({ length: n }, (_, i) => ({
         index: i,
@@ -89,10 +89,10 @@ describe('OpenAIEmbeddingProvider', () => {
     const texts = Array.from({ length: n }, (_, i) => `text ${i}`);
     const result = await provider.embedBatch(texts);
 
-    // Assert shape is [n][1024]
+    // Assert shape is [n][2000]
     expect(result).toHaveLength(n);
     for (const embedding of result) {
-      expect(embedding).toHaveLength(1024);
+      expect(embedding).toHaveLength(2000);
     }
   });
 

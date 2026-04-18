@@ -22,8 +22,8 @@ describe('PROVIDER_CONFIG', () => {
   });
 
   it('defaults to the OpenRouter free-tier model', () => {
-    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('openai/gpt-oss-120b:free');
-    expect(COMPLETION_CONFIG.defaultModel).toBe('openai/gpt-oss-120b:free');
+    expect(PROVIDER_CONFIG.defaultManagedModel).toBe('google/gemma-4-31b-it:free');
+    expect(COMPLETION_CONFIG.defaultModel).toBe('google/gemma-4-31b-it:free');
   });
 });
 

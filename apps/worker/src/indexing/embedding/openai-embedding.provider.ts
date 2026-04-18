@@ -6,10 +6,10 @@ import type { EmbeddingProvider } from './embedding-provider.interface';
 /**
  * OpenAI embedding provider (A-051).
  *
- * Calls `text-embedding-3-small` with `dimensions: 1024` per backlog §2.5.
+ * Calls `qwen/qwen3-embedding-8b` with `dimensions: 2000` per backlog §2.5.
  * Batches are sent in a single API call (OpenAI supports up to 2048 inputs).
  *
- * Model version stored: "text-embedding-3-small-1024d"
+ * Model version stored: "qwen/qwen3-embedding-8b-2000d"
  */
 @Injectable()
 export class OpenAIEmbeddingProvider implements EmbeddingProvider {

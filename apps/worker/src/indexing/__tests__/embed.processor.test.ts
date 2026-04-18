@@ -11,7 +11,7 @@ const mockDataSource = {
 };
 const mockEmbeddingProvider = {
   embedBatch: vi.fn(),
-  modelVersion: 'text-embedding-3-small-1024d',
+  modelVersion: 'qwen/qwen3-embedding-8b-2000d',
 };
 
 function buildProcessor(): EmbedProcessor {
@@ -175,7 +175,7 @@ describe('EmbedProcessor', () => {
     it('$3 is scalar model_version string', async () => {
       await processor.process(fakeJob());
       const [, params] = mockManager.query.mock.calls[0];
-      expect(params[2]).toBe('text-embedding-3-small-1024d');
+      expect(params[2]).toBe('qwen/qwen3-embedding-8b-2000d');
     });
 
     it('bulk UPDATE SQL contains unnest', async () => {

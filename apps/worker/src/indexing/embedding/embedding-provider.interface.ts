@@ -20,7 +20,7 @@ export interface EmbeddingProvider {
   /** Human-readable provider name for logging */
   readonly providerName: string;
 
-  /** Model version string stored alongside chunks (e.g. "text-embedding-3-small-1024d") */
+  /** Model version string stored alongside chunks (e.g. "qwen/qwen3-embedding-8b-2000d") */
   readonly modelVersion: string;
 
   /** Expected embedding dimensions */

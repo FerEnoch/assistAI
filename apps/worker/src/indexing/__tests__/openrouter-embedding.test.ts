@@ -57,9 +57,9 @@ describe('OpenRouterEmbeddingProvider', () => {
   it('should have correct provider metadata', () => {
     expect(provider.providerName).toBe('openrouter');
     expect(provider.modelVersion).toBe(
-      'qwen/qwen3-embedding-8b-truncated-1024d',
+      'qwen/qwen3-embedding-8b-truncated-2000d',
     );
-    expect(provider.dimensions).toBe(1024);
+    expect(provider.dimensions).toBe(2000);
   });
 
   // ── Empty input ──────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ describe('OpenRouterEmbeddingProvider', () => {
   // ── Correct API call ─────────────────────────────────────────────────
 
   it('should call OpenRouter API with correct model and baseURL', async () => {
-    const fakeEmbedding = Array.from({ length: 1024 }, (_, i) => i * 0.001);
+    const fakeEmbedding = Array.from({ length: 2000 }, (_, i) => i * 0.001);
     mockCreate.mockResolvedValue({
       data: [
         { index: 0, embedding: fakeEmbedding },
@@ -90,15 +90,15 @@ describe('OpenRouterEmbeddingProvider', () => {
     });
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toHaveLength(1024);
-    expect(result[1]).toHaveLength(1024);
+    expect(result[0]).toHaveLength(2000);
+    expect(result[1]).toHaveLength(2000);
   });
 
   // ── Sort by index ────────────────────────────────────────────────────
 
   it('should sort results by index to guarantee order', async () => {
-    const emb1 = Array.from({ length: 1024 }, () => 0.1);
-    const emb2 = Array.from({ length: 1024 }, () => 0.2);
+    const emb1 = Array.from({ length: 2000 }, () => 0.1);
+    const emb2 = Array.from({ length: 2000 }, () => 0.2);
 
     mockCreate.mockResolvedValue({
       data: [
@@ -115,9 +115,9 @@ describe('OpenRouterEmbeddingProvider', () => {
 
   // ── Shape validation ─────────────────────────────────────────────────
 
-  it('should output array shape [n][1024]', async () => {
+  it('should output array shape [n][2000]', async () => {
     const n = 5;
-    const fakeEmbedding = Array.from({ length: 1024 }, () => Math.random());
+    const fakeEmbedding = Array.from({ length: 2000 }, () => Math.random());
     mockCreate.mockResolvedValue({
       data: Array.from({ length: n }, (_, i) => ({
         index: i,
@@ -130,7 +130,7 @@ describe('OpenRouterEmbeddingProvider', () => {
 
     expect(result).toHaveLength(n);
     for (const embedding of result) {
-      expect(embedding).toHaveLength(1024);
+      expect(embedding).toHaveLength(2000);
     }
   });
 
@@ -150,7 +150,7 @@ describe('OpenRouterEmbeddingProvider', () => {
   // ── Retry on 429 ────────────────────────────────────────────────────
 
   it('should retry on rate-limit (429) errors', async () => {
-    const fakeEmbedding = Array.from({ length: 1024 }, () => 0.5);
+    const fakeEmbedding = Array.from({ length: 2000 }, () => 0.5);
     const rateLimitErr = await createAPIError(429, 'rate limited');
 
     // First call: 429, second call: success
@@ -167,7 +167,7 @@ describe('OpenRouterEmbeddingProvider', () => {
 
     expect(mockCreate).toHaveBeenCalledTimes(2);
     expect(result).toHaveLength(1);
-    expect(result[0]).toHaveLength(1024);
+    expect(result[0]).toHaveLength(2000);
   });
 
   // ── Non-retryable errors propagate immediately ───────────────────────
@@ -185,7 +185,7 @@ describe('OpenRouterEmbeddingProvider', () => {
   // ── Batching ─────────────────────────────────────────────────────────
 
   it('should split large inputs into sub-batches of 64', async () => {
-    const fakeEmbedding = Array.from({ length: 1024 }, () => 0.1);
+    const fakeEmbedding = Array.from({ length: 2000 }, () => 0.1);
 
     mockCreate.mockImplementation(async ({ input }: { input: string[] }) => ({
       data: input.map((_, i) => ({

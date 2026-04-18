@@ -10,12 +10,12 @@ import type { QueryEmbeddingPort } from './query-embedding.token';
  * OpenAI-compatible `/v1/embeddings` endpoint.
  *
  * Drop-in replacement for `QueryEmbeddingService` — implements the same
- * `QueryEmbeddingPort` interface with identical output shape (1024d vectors).
+ * `QueryEmbeddingPort` interface with identical output shape (2000d vectors).
  *
  * Unlike the worker's batch-oriented provider, this only embeds single queries.
  * The model returns 4096-dimensional embeddings natively. We truncate them to
- * 1024 dimensions to stay compatible with pgvector HNSW limits and
- * the existing `document_chunks.embedding vector(1024)` schema.
+ * 2000 dimensions (pgvector HNSW max) to maximize retrieval quality within
+ * the `document_chunks.embedding vector(2000)` schema.
  */
 @Injectable()
 export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
@@ -57,8 +57,8 @@ export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
       this.logger.warn(
         `[OpenRouter] ⚠ Embedding truncation active: ` +
         `${QueryOpenRouterEmbeddingService.MODEL} produces ${QueryOpenRouterEmbeddingService.NATIVE_DIMENSIONS}d natively ` +
-        `but schema is vector(1024) — truncating to ${QueryOpenRouterEmbeddingService.DIMENSIONS}d. ` +
-        `Index and query paths MUST use the same projection.`,
+        `— truncating to ${QueryOpenRouterEmbeddingService.DIMENSIONS}d (pgvector HNSW max = 2000). ` +
+        `Index and query paths MUST use the same truncation.`,
       );
     }
   }
@@ -67,7 +67,7 @@ export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
    * Generate an embedding vector for a query string.
    *
    * @param text - The query text to embed
-   * @returns The embedding vector (1024d), or null if generation fails (non-fatal)
+   * @returns The embedding vector (2000d), or null if generation fails (non-fatal)
    */
   async embed(text: string): Promise<number[] | null> {
     if (!this.isConfigured) {

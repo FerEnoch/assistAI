@@ -13,8 +13,8 @@ import type { EmbeddingProvider } from './embedding-provider.interface';
  * `EmbeddingProvider` interface with identical output shape.
  *
  * The model returns 4096-dimensional embeddings natively. We truncate them to
- * 1024 dimensions to remain compatible with pgvector HNSW limits
- * (max 2000 dimensions) and the existing vector(1024) schema.
+ * 2000 dimensions — the maximum pgvector HNSW supports — to maximize
+ * retrieval quality within the existing vector(2000) schema.
  *
  * Includes basic retry logic for rate-limit (429) errors that are common
  * on free-tier models.
@@ -25,7 +25,7 @@ export class OpenRouterEmbeddingProvider implements EmbeddingProvider {
   private readonly client: OpenAI;
 
   readonly providerName = 'openrouter';
-  readonly modelVersion = 'qwen/qwen3-embedding-8b-truncated-1024d';
+  readonly modelVersion = 'qwen/qwen3-embedding-8b-truncated-2000d';
   readonly dimensions = EMBEDDING_CONFIG.dimensions;
 
   /** OpenRouter free-tier is slower — use smaller batches */
@@ -49,8 +49,8 @@ export class OpenRouterEmbeddingProvider implements EmbeddingProvider {
     this.logger.warn(
       `[OpenRouter] ⚠ Embedding truncation active: ` +
       `${OpenRouterEmbeddingProvider.MODEL} produces ${OpenRouterEmbeddingProvider.NATIVE_DIMENSIONS}d natively ` +
-      `but schema is vector(1024) — truncating to ${this.dimensions}d. ` +
-      `Index and query paths MUST use the same projection.`,
+      `— truncating to ${this.dimensions}d (pgvector HNSW max = 2000). ` +
+      `Index and query paths MUST use the same truncation.`,
     );
   }
 

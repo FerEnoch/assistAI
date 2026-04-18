@@ -46,8 +46,8 @@ describe('QueryOpenRouterEmbeddingService', () => {
 
   // ── Correct API call ──────────────────────────────────────────────────
 
-  it('should call OpenRouter API with correct model and return 1024d vector', async () => {
-    const fakeEmbedding = Array.from({ length: 1024 }, (_, i) => i * 0.001);
+  it('should call OpenRouter API with correct model and return 2000d vector', async () => {
+    const fakeEmbedding = Array.from({ length: 2000 }, (_, i) => i * 0.001);
     mockCreate.mockResolvedValue({
       data: [{ index: 0, embedding: fakeEmbedding }],
     });
@@ -59,7 +59,7 @@ describe('QueryOpenRouterEmbeddingService', () => {
       input: 'test query',
       encoding_format: 'float',
     });
-    expect(result).toHaveLength(1024);
+    expect(result).toHaveLength(2000);
     expect(result).toEqual(fakeEmbedding);
   });
 

@@ -7,7 +7,7 @@ import type { QueryEmbeddingPort } from './query-embedding.token';
  * Query embedding service for the API — generates embeddings for retrieval queries (A-053).
  *
  * Uses the same model and dimensions as the worker's OpenAIEmbeddingProvider
- * to ensure vector space consistency (text-embedding-3-small, 1024d).
+ * to ensure vector space consistency (qwen/qwen3-embedding-8b, 2000d).
  *
  * This is a thin wrapper around the OpenAI API, instantiated once as a singleton.
  * Unlike the worker's batch-oriented provider, this only embeds single queries.

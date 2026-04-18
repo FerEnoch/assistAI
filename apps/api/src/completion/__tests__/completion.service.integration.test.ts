@@ -31,7 +31,7 @@ describe('CompletionService — structural gate integration', () => {
   let mockSessionRepo: Record<string, ReturnType<typeof vi.fn>>;
   let mockCompletionRepo: Record<string, ReturnType<typeof vi.fn>>;
   let mockHitRepo: Record<string, ReturnType<typeof vi.fn>>;
-  let mockDataSource: Record<string, unknown>;
+  let mockTemplateSectionRepo: Record<string, ReturnType<typeof vi.fn>>;
   let mockRetrievalService: Record<string, ReturnType<typeof vi.fn>>;
   let mockQueryEmbedding: Record<string, ReturnType<typeof vi.fn>>;
   let mockPromptAssembler: Record<string, ReturnType<typeof vi.fn>>;
@@ -53,7 +53,9 @@ describe('CompletionService — structural gate integration', () => {
       create: vi.fn().mockImplementation((data) => data),
       save: vi.fn().mockResolvedValue(undefined),
     };
-    mockDataSource = {};
+    mockTemplateSectionRepo = {
+      find: vi.fn().mockResolvedValue([]),
+    };
 
     mockRetrievalService = {
       findSimilarChunks: vi.fn().mockResolvedValue([]),
@@ -109,7 +111,7 @@ describe('CompletionService — structural gate integration', () => {
       mockSessionRepo as any,
       mockCompletionRepo as any,
       mockHitRepo as any,
-      mockDataSource as any,
+      mockTemplateSectionRepo as any,
       mockRetrievalService as any,
       mockQueryEmbedding as any,
       mockPromptAssembler as any,

@@ -4,6 +4,7 @@ import {
   EditorSession,
   CompletionRequest,
   CompletionRetrievalHit,
+  TemplateSection,
 } from '@assistai/entities';
 import { RetrievalModule } from '../retrieval/retrieval.module';
 import { ProviderModule } from '../provider/provider.module';
@@ -19,6 +20,7 @@ import { MetadataAwareRetrievalService } from './metadata-aware-retrieval.servic
       EditorSession,
       CompletionRequest,
       CompletionRetrievalHit,
+      TemplateSection,
     ]),
     RetrievalModule,
     ProviderModule,

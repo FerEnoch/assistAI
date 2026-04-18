@@ -7,7 +7,6 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Template } from './template.entity';
 
 @Entity('template_sections')
 export class TemplateSection {
@@ -17,11 +16,10 @@ export class TemplateSection {
   @Column({ type: 'uuid', name: 'template_id' })
   templateId!: string;
 
-  @ManyToOne(() => Template, (template) => template.sections, {
-    onDelete: 'CASCADE',
-  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  @ManyToOne('Template', 'sections', { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'template_id' })
-  template?: Template;
+  template?: any;
 
   @Column({ type: 'varchar', length: 255 })
   name!: string;

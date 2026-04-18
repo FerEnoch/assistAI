@@ -9,7 +9,6 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Workspace } from './workspace.entity';
-import { TemplateSection } from './template-section.entity';
 
 @Entity('templates')
 export class Template {
@@ -32,11 +31,9 @@ export class Template {
   @Column({ type: 'text', nullable: true })
   description?: string | null;
 
-  @OneToMany(() => TemplateSection, (section) => section.template, {
-    cascade: true,
-    eager: false,
-  })
-  sections?: TemplateSection[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  @OneToMany('TemplateSection', 'template', { cascade: true, eager: false })
+  sections?: any[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

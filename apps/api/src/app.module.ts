@@ -12,6 +12,7 @@ import { SecurityModule } from './security/security.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { WorkspaceModule } from './workspace/workspace.module';
 import { TemplateModule } from './template/template.module';
+import { LibraryModule } from './library/library.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TemplateModule } from './template/template.module';
     SecurityModule,
     WorkspaceModule,
     TemplateModule,
+    LibraryModule,
   ],
 })
 export class AppModule {}

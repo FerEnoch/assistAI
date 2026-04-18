@@ -57,7 +57,7 @@ describe('OpenRouterEmbeddingProvider', () => {
   it('should have correct provider metadata', () => {
     expect(provider.providerName).toBe('openrouter');
     expect(provider.modelVersion).toBe(
-      'nvidia/llama-nemotron-embed-vl-1b-v2:free-projected-1024d',
+      'qwen/qwen3-embedding-8b-truncated-1024d',
     );
     expect(provider.dimensions).toBe(1024);
   });
@@ -84,7 +84,7 @@ describe('OpenRouterEmbeddingProvider', () => {
     const result = await provider.embedBatch(['hello', 'world']);
 
     expect(mockCreate).toHaveBeenCalledWith({
-      model: 'nvidia/llama-nemotron-embed-vl-1b-v2:free',
+      model: 'qwen/qwen3-embedding-8b',
       input: ['hello', 'world'],
       encoding_format: 'float',
     });

@@ -61,7 +61,7 @@ export const FREE_PROVIDERS = [
     apiKeyEnv: 'OPENROUTER_API_KEY',
     baseUrl: 'https://openrouter.ai/api/v1',
     // Free-tier model — no credits consumed. Top-weekly free model on OpenRouter.
-    model: 'openai/gpt-oss-120b:free',
+    model: 'google/gemma-4-31b-it:free',
   },
   {
     name: 'cerebras',

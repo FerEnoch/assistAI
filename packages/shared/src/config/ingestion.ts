@@ -99,6 +99,6 @@ export const CHUNKING_CONFIG = {
  * Embedding model configuration (backlog §2.5).
  */
 export const EMBEDDING_CONFIG = {
-  model: 'text-embedding-3-small',
+  model: 'qwen/qwen3-embedding-8b',
   dimensions: 1024,
 } as const;

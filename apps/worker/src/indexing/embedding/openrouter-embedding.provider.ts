@@ -6,13 +6,13 @@ import type { EmbeddingProvider } from './embedding-provider.interface';
 /**
  * OpenRouter embedding provider.
  *
- * Uses `nvidia/llama-nemotron-embed-vl-1b-v2:free` via OpenRouter's
+ * Uses `qwen/qwen3-embedding-8b` via OpenRouter's
  * OpenAI-compatible `/v1/embeddings` endpoint.
  *
  * Drop-in replacement for `OpenAIEmbeddingProvider` — implements the same
  * `EmbeddingProvider` interface with identical output shape.
  *
- * The model returns 2048-dimensional embeddings. We project them to
+ * The model returns 4096-dimensional embeddings natively. We truncate them to
  * 1024 dimensions to remain compatible with pgvector HNSW limits
  * (max 2000 dimensions) and the existing vector(1024) schema.
  *
@@ -25,7 +25,7 @@ export class OpenRouterEmbeddingProvider implements EmbeddingProvider {
   private readonly client: OpenAI;
 
   readonly providerName = 'openrouter';
-  readonly modelVersion = 'nvidia/llama-nemotron-embed-vl-1b-v2:free-projected-1024d';
+  readonly modelVersion = 'qwen/qwen3-embedding-8b-truncated-1024d';
   readonly dimensions = EMBEDDING_CONFIG.dimensions;
 
   /** OpenRouter free-tier is slower — use smaller batches */
@@ -35,10 +35,10 @@ export class OpenRouterEmbeddingProvider implements EmbeddingProvider {
   private readonly maxRetries = 3;
   private readonly retryBaseDelayMs = 1_000;
 
-  private static readonly MODEL = 'nvidia/llama-nemotron-embed-vl-1b-v2:free';
+  private static readonly MODEL = 'qwen/qwen3-embedding-8b';
 
-  /** Native output size from model before projection */
-  private static readonly NATIVE_DIMENSIONS = 2048;
+  /** Native output size from model before truncation */
+  private static readonly NATIVE_DIMENSIONS = 4096;
 
   constructor() {
     this.client = new OpenAI({
@@ -47,9 +47,9 @@ export class OpenRouterEmbeddingProvider implements EmbeddingProvider {
     });
 
     this.logger.warn(
-      `[OpenRouter] ⚠ Embedding projection active: ` +
+      `[OpenRouter] ⚠ Embedding truncation active: ` +
       `${OpenRouterEmbeddingProvider.MODEL} produces ${OpenRouterEmbeddingProvider.NATIVE_DIMENSIONS}d natively ` +
-      `but pgvector HNSW limit is 2000 — truncating to ${this.dimensions}d. ` +
+      `but schema is vector(1024) — truncating to ${this.dimensions}d. ` +
       `Index and query paths MUST use the same projection.`,
     );
   }

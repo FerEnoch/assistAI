@@ -6,14 +6,14 @@ import type { QueryEmbeddingPort } from './query-embedding.token';
 /**
  * OpenRouter query embedding service for the API.
  *
- * Uses `nvidia/llama-nemotron-embed-vl-1b-v2:free` via OpenRouter's
+ * Uses `qwen/qwen3-embedding-8b` via OpenRouter's
  * OpenAI-compatible `/v1/embeddings` endpoint.
  *
  * Drop-in replacement for `QueryEmbeddingService` — implements the same
  * `QueryEmbeddingPort` interface with identical output shape (1024d vectors).
  *
  * Unlike the worker's batch-oriented provider, this only embeds single queries.
- * The model returns 2048-dimensional embeddings. We project them to
+ * The model returns 4096-dimensional embeddings natively. We truncate them to
  * 1024 dimensions to stay compatible with pgvector HNSW limits and
  * the existing `document_chunks.embedding vector(1024)` schema.
  */
@@ -23,8 +23,8 @@ export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
   private readonly client: OpenAI;
   private readonly isConfigured: boolean;
 
-  static readonly MODEL = 'nvidia/llama-nemotron-embed-vl-1b-v2:free';
-  static readonly NATIVE_DIMENSIONS = 2048;
+  static readonly MODEL = 'qwen/qwen3-embedding-8b';
+  static readonly NATIVE_DIMENSIONS = 4096;
   static readonly DIMENSIONS = EMBEDDING_CONFIG.dimensions;
 
   private isPlaceholderKey(value: string | undefined): boolean {
@@ -55,9 +55,9 @@ export class QueryOpenRouterEmbeddingService implements QueryEmbeddingPort {
 
     if (this.isConfigured) {
       this.logger.warn(
-        `[OpenRouter] ⚠ Embedding projection active: ` +
+        `[OpenRouter] ⚠ Embedding truncation active: ` +
         `${QueryOpenRouterEmbeddingService.MODEL} produces ${QueryOpenRouterEmbeddingService.NATIVE_DIMENSIONS}d natively ` +
-        `but pgvector HNSW limit is 2000 — truncating to ${QueryOpenRouterEmbeddingService.DIMENSIONS}d. ` +
+        `but schema is vector(1024) — truncating to ${QueryOpenRouterEmbeddingService.DIMENSIONS}d. ` +
         `Index and query paths MUST use the same projection.`,
       );
     }

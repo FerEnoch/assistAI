@@ -55,7 +55,7 @@ describe('QueryOpenRouterEmbeddingService', () => {
     const result = await service.embed('test query');
 
     expect(mockCreate).toHaveBeenCalledWith({
-      model: 'nvidia/llama-nemotron-embed-vl-1b-v2:free',
+      model: 'qwen/qwen3-embedding-8b',
       input: 'test query',
       encoding_format: 'float',
     });

@@ -12,6 +12,8 @@ interface DrivePickerProps {
   sourceId: string;
   onSelect: (fileIds: string[], rootLocator: string) => void;
   onCancel: () => void;
+  /** When true, only one file can be selected and folders are hidden */
+  singleSelect?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ interface DrivePickerProps {
  * Allows users to select files or folders for indexing.
  * All copy in Spanish.
  */
-export function DrivePicker({ sourceId, onSelect, onCancel }: DrivePickerProps) {
+export function DrivePicker({ sourceId, onSelect, onCancel, singleSelect = false }: DrivePickerProps) {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,9 @@ export function DrivePicker({ sourceId, onSelect, onCancel }: DrivePickerProps) 
       if (next.has(fileId)) {
         next.delete(fileId);
       } else {
+        if (singleSelect) {
+          next.clear();
+        }
         next.add(fileId);
       }
       return next;
@@ -95,7 +100,9 @@ export function DrivePicker({ sourceId, onSelect, onCancel }: DrivePickerProps) 
         {error && <p style={styles.error}>{error}</p>}
 
         <div style={styles.fileList}>
-          {files.map((file) => (
+          {files
+          .filter((file) => !singleSelect || !isFolder(file.mimeType))
+          .map((file) => (
             <label key={file.id} style={styles.fileItem}>
               <input
                 type="checkbox"

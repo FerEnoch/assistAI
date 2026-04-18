@@ -23,7 +23,7 @@ export function LoginPage() {
     if (devMode) {
       const success = await devLogin(email);
       if (success) {
-        navigate('/dashboard');
+        navigate('/library');
       }
     } else {
       const success = await sendMagicLink(email);
@@ -39,7 +39,7 @@ export function LoginPage() {
     const devEmail = email ?? '';
     const success = await devLogin(devEmail);
     if (success) {
-      navigate('/dashboard');
+      navigate('/library');
     }
   };
 

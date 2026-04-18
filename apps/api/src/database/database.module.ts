@@ -13,6 +13,9 @@ import {
   CompletionRequest,
   CompletionRetrievalHit,
   ModelEndpoint,
+  Template,
+  TemplateSection,
+  TemplateDocument,
 } from '@assistai/entities';
 import { dataSourceOptions } from './data-source';
 
@@ -30,6 +33,9 @@ const ALL_ENTITIES = [
   CompletionRequest,
   CompletionRetrievalHit,
   ModelEndpoint,
+  Template,
+  TemplateSection,
+  TemplateDocument,
 ];
 
 @Module({

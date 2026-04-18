@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 
 /**
  * Verify page — handles magic-link token verification.
- * Redirects to /dashboard on success, shows error on failure.
+ * Redirects to /library on success, shows error on failure.
  * All copy in Spanish per A-024.
  */
 export function VerifyPage() {
@@ -21,7 +21,7 @@ export function VerifyPage() {
 
     verifyToken(token).then((success) => {
       if (success) {
-        navigate('/dashboard', { replace: true });
+        navigate('/library', { replace: true });
       }
     });
   }, [searchParams, verifyToken, navigate]);

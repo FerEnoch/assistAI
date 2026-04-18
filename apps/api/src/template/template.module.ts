@@ -4,6 +4,7 @@ import { BullModule } from '@nestjs/bullmq';
 import {
   Template,
   TemplateSection,
+  TemplateDocument,
   Document,
   DocumentChunk,
 } from '@assistai/entities';
@@ -13,7 +14,7 @@ import { TemplateService } from './template.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Template, TemplateSection, Document, DocumentChunk]),
+    TypeOrmModule.forFeature([Template, TemplateSection, TemplateDocument, Document, DocumentChunk]),
     BullModule.registerQueue({ name: QUEUE_NAMES.INGESTION_EMBED }),
   ],
   controllers: [TemplateController],

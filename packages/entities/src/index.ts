@@ -15,3 +15,4 @@ export { ModelEndpoint } from './model-endpoint.entity';
 export type { ProviderType, EndpointStatus } from './model-endpoint.entity';
 export { Template } from './template.entity';
 export { TemplateSection } from './template-section.entity';
+export { TemplateDocument } from './template-document.entity';

@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
 import { LoginPage } from './pages/LoginPage';
 import { VerifyPage } from './pages/VerifyPage';
-import { DashboardPage } from './pages/DashboardPage';
 import { EditorPage } from './pages/EditorPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { AuthProvider, useAuth } from './auth/AuthContext';
@@ -18,7 +17,7 @@ function AppHeader() {
   return (
     <header style={styles.header}>
       <div style={styles.headerLeft}>
-        <a href="/dashboard" style={styles.logo}>AssistAI</a>
+        <a href="/library" style={styles.logo}>AssistAI</a>
       </div>
       <div style={styles.headerRight}>
         <span style={styles.email}>{user?.email}</span>
@@ -71,19 +70,11 @@ export function App() {
       <ThemeProvider>
         <AuthProvider>
           <Routes>
-            <Route path="*" element={<Navigate to="/auth/login" replace />} />
+            <Route path="*" element={<Navigate to="/library" replace />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/verify" element={<VerifyPage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <AuthLayout>
-                    <DashboardPage />
-                  </AuthLayout>
-                </ProtectedRoute>
-              }
-            />
+            {/* Legacy redirect — keep for bookmarks/history */}
+            <Route path="/dashboard" element={<Navigate to="/library" replace />} />
             <Route
               path="/library"
               element={

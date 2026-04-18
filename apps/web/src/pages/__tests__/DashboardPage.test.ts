@@ -2,15 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Source } from '../../hooks/useSources';
 
 // ──────────────────────────────────────────────
-// T-3.8 a T-3.13: DashboardPage logic tests
-//
-// Strategy: test pure functions / logic extracted from DashboardPage.
-// This avoids React Testing Library while verifying all business logic.
+// Source state helpers — previously tested in DashboardPage.
+// Now moved to Library (Drive connection logic migrated to LibraryPage).
+// Dashboard route redirects to /library.
 // ──────────────────────────────────────────────
 
 // ─── Source state helpers ───────────────────────────────────────────────────
 
-/** Mirrors the logic in DashboardPage to find a connected source */
+/** Logic to find a connected source (used in LibraryPage) */
 function findConnectedSource(sources: Source[]): Source | undefined {
   return sources.find((s) => s.status === 'connected' || s.status === 'syncing');
 }
@@ -53,14 +52,12 @@ async function selectFiles(
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-describe('DashboardPage — source state logic', () => {
-  // T-3.8: sin source conectada
+describe('LibraryPage — source state logic (migrated from Dashboard)', () => {
   it('returns undefined when no sources are connected', () => {
     const sources: Source[] = [];
     expect(findConnectedSource(sources)).toBeUndefined();
   });
 
-  // T-3.9: con source conectada muestra email
   it('returns the connected source with rootLocator (email)', () => {
     const src = makeSource({ rootLocator: 'test@example.com' });
     const result = findConnectedSource([src]);
@@ -82,7 +79,7 @@ describe('DashboardPage — source state logic', () => {
   });
 });
 
-describe('DashboardPage — handleSelectFiles logic', () => {
+describe('LibraryPage — handleSelectFiles logic', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -94,7 +91,6 @@ describe('DashboardPage — handleSelectFiles logic', () => {
     vi.restoreAllMocks();
   });
 
-  // T-3.10: handleSelectFiles llama POST /sources/:id/select con x-csrf-token
   it('calls POST /sources/:id/select with x-csrf-token header', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
 
@@ -115,7 +111,6 @@ describe('DashboardPage — handleSelectFiles logic', () => {
     );
   });
 
-  // T-3.13: el header x-csrf-token refleja el token recibido
   it('forwards the csrfToken into the x-csrf-token header', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
 
@@ -127,7 +122,6 @@ describe('DashboardPage — handleSelectFiles logic', () => {
     });
   });
 
-  // T-3.11: éxito → ok: true
   it('returns ok: true on successful response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
 
@@ -135,7 +129,6 @@ describe('DashboardPage — handleSelectFiles logic', () => {
     expect(result).toEqual({ ok: true });
   });
 
-  // T-3.12: error → ok: false con mensaje en español
   it('returns ok: false with Spanish error message on non-OK response', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 422 } as Response);
 

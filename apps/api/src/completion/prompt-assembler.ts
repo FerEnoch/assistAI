@@ -85,11 +85,12 @@ export class PromptAssembler {
    */
   detectDocumentType(prefix: string): string | null {
     const lower = prefix.toLowerCase();
-    if (/contrato de|las partes acuerdan/.test(lower)) return 'CONTRATO';
-    if (/\bdemanda\b|\bactor\b|\bdemandado\b/.test(lower)) return 'DEMANDA';
-    if (/\bacta\b|reuni[oó]n|sesi[oó]n/.test(lower)) return 'ACTA';
-    if (/providencia|juzgado|autos y vistos/.test(lower)) return 'PROVIDENCIA';
+    if (/contrato de|las partes acuerdan|cl[aá]usula/.test(lower)) return 'CONTRATO';
+    if (/\bdemanda\b|\bactor\b|\bdemandado\b|a la causa/.test(lower)) return 'DEMANDA';
+    if (/\bacta\b|reuni[oó]n|sesi[oó]n|\basistentes\b/.test(lower)) return 'ACTA';
+    if (/providencia|juzgado|autos y vistos|por ello/.test(lower)) return 'PROVIDENCIA';
     if (/resoluci[oó]n|\bvisto\s+el\b|\bvisto\s+y\s+considerando\b|\bvistos\s+los\b|considerando/.test(lower)) return 'RESOLUCIÓN';
+    if (/poder general|poder especial|\botorgante\b|\bapoderado\b|\bpoderdante\b|confiere poder/.test(lower)) return 'PODER';
     return null;
   }
 }

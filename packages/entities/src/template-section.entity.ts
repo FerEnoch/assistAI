@@ -2,11 +2,10 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  CreateDateColumn,
-  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import { Template } from './template.entity';
 
 @Entity('template_sections')
 export class TemplateSection {
@@ -16,23 +15,19 @@ export class TemplateSection {
   @Column({ type: 'uuid', name: 'template_id' })
   templateId!: string;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  @ManyToOne('Template', 'sections', { onDelete: 'CASCADE' })
+  @ManyToOne(() => Template, (t) => t.sections, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'template_id' })
-  template?: any;
+  template!: Template;
 
   @Column({ type: 'varchar', length: 255 })
   name!: string;
 
-  @Column({ type: 'text' })
-  content!: string;
+  @Column({ type: 'int', default: 0, name: 'order' })
+  order!: number;
 
-  @Column({ type: 'int', name: 'section_index', default: 0 })
-  sectionIndex!: number;
+  @Column({ type: 'text', nullable: true, name: 'sample_content' })
+  sampleContent?: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'clause_type' })
+  clauseType?: string | null;
 }

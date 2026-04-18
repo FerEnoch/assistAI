@@ -17,9 +17,10 @@ import {
   TemplateDocument,
   Document,
   DocumentChunk,
+  ContentSource,
 } from '@assistai/entities';
-import { QUEUE_NAMES } from '@assistai/shared';
-import type { ChunkMetadata } from '@assistai/shared';
+import { QUEUE_NAMES, INGESTION_RETRY_POLICY } from '@assistai/shared';
+import type { ChunkMetadata, ParseJobPayload } from '@assistai/shared';
 import {
   CreateTemplateDto,
   UpdateTemplateDto,
@@ -42,8 +43,12 @@ export class TemplateService {
     private readonly documentRepo: Repository<Document>,
     @InjectRepository(DocumentChunk)
     private readonly chunkRepo: Repository<DocumentChunk>,
+    @InjectRepository(ContentSource)
+    private readonly sourceRepo: Repository<ContentSource>,
     @InjectQueue(QUEUE_NAMES.INGESTION_EMBED)
     private readonly embedQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.INGESTION_PARSE)
+    private readonly parseQueue: Queue<ParseJobPayload>,
   ) {}
 
   async findAll(workspaceId: string): Promise<Template[]> {
@@ -77,11 +82,12 @@ export class TemplateService {
       name: dto.name,
       docType: dto.docType ?? null,
       description: dto.description ?? null,
-      sections: dto.sections.map((s) =>
+      sections: (dto.sections ?? []).map((s) =>
         this.sectionRepo.create({
           name: s.name,
-          content: s.content,
-          sectionIndex: s.sectionIndex ?? 0,
+          sampleContent: s.sampleContent ?? null,
+          order: s.order ?? 0,
+          clauseType: s.clauseType ?? null,
         }),
       ),
     });
@@ -99,26 +105,8 @@ export class TemplateService {
 
     const savedDoc = await this.documentRepo.save(doc);
 
-    // 3. Create DocumentChunks — one per section
-    const sections = saved.sections ?? [];
-    const chunks = sections.map((section) =>
-      this.chunkRepo.create({
-        documentId: savedDoc.id,
-        workspaceId,
-        content: section.content,
-        chunkIndex: section.sectionIndex,
-        metadata: {
-          isTemplate: true,
-          sourceTemplateId: saved.id,
-          docType: (saved.docType as ChunkMetadata['docType']) ?? null,
-          section: null,
-          clauseType: null,
-          tags: [],
-        },
-      }),
-    );
-
-    await this.chunkRepo.save(chunks);
+    // 3. Index template sections as chunks
+    await this.indexTemplateSections(saved, savedDoc.id, workspaceId);
 
     // 4. Enqueue embed job
     await this.embedQueue.add('embed', {
@@ -127,10 +115,53 @@ export class TemplateService {
     });
 
     this.logger.log(
-      `[Template] Created template=${saved.id} doc=${savedDoc.id} chunks=${chunks.length} workspace=${workspaceId}`,
+      `[Template] Created template=${saved.id} doc=${savedDoc.id} workspace=${workspaceId}`,
     );
 
     return saved;
+  }
+
+  /**
+   * Index each template section with sampleContent as a chunk with template metadata (T-5.5).
+   */
+  private async indexTemplateSections(
+    template: Template,
+    documentId: string,
+    workspaceId: string,
+  ): Promise<void> {
+    const sections = template.sections ?? [];
+    const sectionsWithContent = sections.filter((s) => s.sampleContent);
+
+    if (sectionsWithContent.length === 0) return;
+
+    const chunks = sectionsWithContent.map((section) =>
+      this.chunkRepo.create({
+        documentId,
+        workspaceId,
+        content: section.sampleContent!,
+        chunkIndex: section.order,
+        metadata: {
+          isTemplate: true,
+          sourceTemplateId: template.id,
+          docType: (template.docType as ChunkMetadata['docType']) ?? null,
+          section: null,
+          clauseType: (section.clauseType as ChunkMetadata['clauseType']) ?? null,
+          tags: [],
+        },
+      }),
+    );
+
+    await this.chunkRepo.save(chunks);
+  }
+
+  /**
+   * Remove all document_chunks that reference a given templateId via metadata (T-5.7).
+   */
+  private async removeTemplateChunks(templateId: string): Promise<void> {
+    await this.templateRepo.manager.query(
+      `DELETE FROM document_chunks WHERE metadata->>'sourceTemplateId' = $1`,
+      [templateId],
+    );
   }
 
   async update(
@@ -155,8 +186,9 @@ export class TemplateService {
         this.sectionRepo.create({
           templateId: id,
           name: s.name,
-          content: s.content,
-          sectionIndex: s.sectionIndex ?? 0,
+          sampleContent: s.sampleContent ?? null,
+          order: s.order ?? 0,
+          clauseType: s.clauseType ?? null,
         }),
       );
     }
@@ -176,26 +208,8 @@ export class TemplateService {
         existingDoc.ingestStatus = 'processing';
         await this.documentRepo.save(existingDoc);
 
-        // Create new chunks
-        const sections = saved.sections ?? [];
-        const chunks = sections.map((section) =>
-          this.chunkRepo.create({
-            documentId: existingDoc.id,
-            workspaceId,
-            content: section.content,
-            chunkIndex: section.sectionIndex,
-            metadata: {
-              isTemplate: true,
-              sourceTemplateId: id,
-              docType: (saved.docType as ChunkMetadata['docType']) ?? null,
-              section: null,
-              clauseType: null,
-              tags: [],
-            },
-          }),
-        );
-
-        await this.chunkRepo.save(chunks);
+        // Re-index new sections
+        await this.indexTemplateSections(saved, existingDoc.id, workspaceId);
 
         await this.embedQueue.add('embed', {
           documentId: existingDoc.id,
@@ -203,7 +217,7 @@ export class TemplateService {
         });
 
         this.logger.log(
-          `[Template] Re-indexed template=${id} doc=${existingDoc.id} chunks=${chunks.length}`,
+          `[Template] Re-indexed template=${id} doc=${existingDoc.id}`,
         );
       }
     }
@@ -220,7 +234,10 @@ export class TemplateService {
       throw new NotFoundException('Template not found');
     }
 
-    // Delete synthetic document (cascades to chunks)
+    // Delete chunks with matching sourceTemplateId (T-5.8)
+    await this.removeTemplateChunks(id);
+
+    // Delete synthetic document (cascades to remaining chunks by documentId)
     const doc = await this.documentRepo.findOne({
       where: { externalDocumentId: `template-${id}`, workspaceId },
     });
@@ -337,12 +354,44 @@ export class TemplateService {
       }),
     );
 
-    // 5. Enqueue embed job (worker picks up file from uploads dir)
-    await this.embedQueue.add('embed', {
-      documentId: savedDoc.id,
-      workspaceId,
-      filePath,
-    });
+    // 5. Enqueue parse job (worker will parse, chunk, then enqueue embed)
+    try {
+      await this.parseQueue.add('parse', {
+        documentId: savedDoc.id,
+        workspaceId,
+        sourceId: null,
+        externalDocumentId: `upload-${savedTemplate.id}`,
+        mimeType: file.mimetype,
+        title: dto.name,
+        sizeBytes: file.size,
+        syncRunId: null,
+        refreshTokenEnc: '',
+        filePath,
+      }, {
+        attempts: INGESTION_RETRY_POLICY.maxAttempts,
+        backoff: {
+          type: INGESTION_RETRY_POLICY.backoffType,
+          delay: INGESTION_RETRY_POLICY.backoffDelay,
+        },
+        removeOnComplete: 100,
+        removeOnFail: 500,
+      });
+    } catch (enqueueErr) {
+      // Rollback: remove orphaned records and temp file
+      this.logger.error(
+        `[Template] Failed to enqueue parse job for upload template=${savedTemplate.id}, rolling back`,
+        enqueueErr,
+      );
+      try {
+        await this.templateDocRepo.delete({ templateId: savedTemplate.id, documentId: savedDoc.id });
+        await this.documentRepo.remove(savedDoc);
+        await this.templateRepo.remove(savedTemplate);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch (cleanupErr) {
+        this.logger.error('[Template] Rollback cleanup failed', cleanupErr);
+      }
+      throw enqueueErr;
+    }
 
     this.logger.log(
       `[Template] Created from upload: template=${savedTemplate.id} doc=${savedDoc.id} file=${fileName}`,
@@ -357,7 +406,39 @@ export class TemplateService {
     workspaceId: string,
     dto: CreateTemplateFromDriveDto,
   ): Promise<Template> {
-    // Guard: validate source belongs to workspace is done in controller
+    // Guard: validate source belongs to workspace
+    const source = await this.sourceRepo.findOne({
+      where: { id: dto.sourceId, workspaceId },
+    });
+    if (!source) {
+      throw new ForbiddenException('Source does not belong to this workspace');
+    }
+
+    // Guard: source must be connected with a valid refresh token
+    if (source.status === 'needs_reauth') {
+      throw new ForbiddenException({
+        message: 'Source requires re-authentication. Please reconnect your Google Drive.',
+        code: 'SOURCE_NEEDS_REAUTH',
+        sourceId: dto.sourceId,
+      });
+    }
+    if (source.status !== 'connected') {
+      throw new ForbiddenException({
+        message: `Source is not connected (status: ${source.status}). Please reconnect the source before importing from Drive.`,
+        code: 'SOURCE_NOT_CONNECTED',
+        sourceId: dto.sourceId,
+      });
+    }
+    if (!source.googleRefreshTokenEnc) {
+      throw new ForbiddenException(
+        'Source has no stored credentials. Please reconnect the Google Drive source.',
+      );
+    }
+
+    // Guard: fileId must not be empty
+    if (!dto.fileId?.trim()) {
+      throw new NotFoundException('fileId is required');
+    }
 
     // 1. Check if fileId already exists as Document in this workspace
     let doc = await this.documentRepo.findOne({
@@ -372,10 +453,25 @@ export class TemplateService {
       description: dto.description ?? null,
       sections:
         dto.sections?.map((s) =>
-          this.sectionRepo.create({ name: s.name, content: s.content, sectionIndex: 0 }),
+          this.sectionRepo.create({
+            name: s.name,
+            sampleContent: s.sampleContent ?? null,
+            order: s.order ?? 0,
+            clauseType: s.clauseType ?? null,
+          }),
         ) ?? [],
     });
     const savedTemplate = await this.templateRepo.save(template);
+
+    const isNewDoc = !doc;
+    // Re-parse if: new doc, failed doc, or already-indexed doc (refresh against current Drive content).
+    // Skip re-parse only for docs actively in-flight (queued/processing) to avoid duplicate churn.
+    const needsParse = !doc || doc.ingestStatus === 'failed' || doc.ingestStatus === 'indexed';
+
+    // Snapshot prior state for rollback of reused docs
+    const priorDocState = doc && (doc.ingestStatus === 'failed' || doc.ingestStatus === 'indexed')
+      ? { ingestStatus: doc.ingestStatus as string, errorReason: doc.errorReason ?? null }
+      : null;
 
     if (!doc) {
       // 3a. Create new Document for this Drive file
@@ -387,14 +483,59 @@ export class TemplateService {
         ingestStatus: 'queued',
       });
       doc = await this.documentRepo.save(doc);
+    } else if (doc.ingestStatus === 'failed' || doc.ingestStatus === 'indexed') {
+      // 3b. Existing document — reset for re-ingestion (refresh content from Drive)
+      this.logger.log(
+        `[Template] Existing document=${doc.id} for fileId=${dto.fileId} has ingestStatus=${doc.ingestStatus}, re-queuing parse for freshness`,
+      );
+      doc.ingestStatus = 'queued';
+      doc.errorReason = null;
+      doc = await this.documentRepo.save(doc);
+    }
 
-      // Enqueue ingest
-      await this.embedQueue.add('embed', {
-        documentId: doc.id,
-        workspaceId,
-        driveFileId: dto.fileId,
-        sourceId: dto.sourceId,
-      });
+    if (needsParse) {
+      // Enqueue parse (not embed) so Drive file gets parsed/ingested first
+      try {
+        await this.parseQueue.add('parse', {
+          documentId: doc.id,
+          workspaceId,
+          sourceId: dto.sourceId,
+          externalDocumentId: dto.fileId,
+          mimeType: '', // resolved by ParseProcessor via Drive API metadata
+          title: dto.name,
+          sizeBytes: 0, // resolved by ParseProcessor via Drive API metadata
+          syncRunId: null,
+          refreshTokenEnc: source.googleRefreshTokenEnc ?? '',
+        }, {
+          attempts: INGESTION_RETRY_POLICY.maxAttempts,
+          backoff: {
+            type: INGESTION_RETRY_POLICY.backoffType,
+            delay: INGESTION_RETRY_POLICY.backoffDelay,
+          },
+          removeOnComplete: 100,
+          removeOnFail: 500,
+        });
+      } catch (enqueueErr) {
+        // Rollback: remove orphaned document (only if new) and template; restore reused doc state
+        this.logger.error(
+          `[Template] Failed to enqueue parse job for Drive template=${savedTemplate.id}, rolling back`,
+          enqueueErr,
+        );
+        try {
+          if (isNewDoc) {
+            await this.documentRepo.remove(doc);
+          } else if (priorDocState) {
+            // Restore the reused document's prior failed state
+            doc.ingestStatus = priorDocState.ingestStatus as any;
+            doc.errorReason = priorDocState.errorReason;
+            await this.documentRepo.save(doc);
+          }
+          await this.templateRepo.remove(savedTemplate);
+        } catch (cleanupErr) {
+          this.logger.error('[Template] Rollback cleanup failed', cleanupErr);
+        }
+        throw enqueueErr;
+      }
     }
 
     // 4. Associate (or re-associate if doc already existed)

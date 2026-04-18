@@ -20,38 +20,27 @@ const mockSources: Source[] = [
 ];
 
 describe('fetchSourcesFromApi()', () => {
-  const originalFetch = global.fetch;
-
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    global.fetch = originalFetch;
-    vi.restoreAllMocks();
-  });
-
   // T-2.2: loading / call pattern
   it('calls GET /sources with credentials: include', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => mockSources,
     } as Response);
 
-    await fetchSourcesFromApi('http://api');
+    await fetchSourcesFromApi('http://api', mockFetch as unknown as typeof fetch);
 
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(fetch).toHaveBeenCalledWith('http://api/sources', { credentials: 'include' });
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(mockFetch).toHaveBeenCalledWith('http://api/sources', { credentials: 'include' });
   });
 
   // T-2.3: retorna sources correctamente
   it('returns the sources array from the API', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => mockSources,
     } as Response);
 
-    const result = await fetchSourcesFromApi('http://api');
+    const result = await fetchSourcesFromApi('http://api', mockFetch as unknown as typeof fetch);
 
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('src-1');
@@ -61,32 +50,44 @@ describe('fetchSourcesFromApi()', () => {
 
   // T-2.4: error handling — respuesta no-ok
   it('throws with Spanish error message on non-OK response', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: false,
       status: 401,
     } as Response);
 
-    await expect(fetchSourcesFromApi('http://api')).rejects.toThrow(
+    await expect(fetchSourcesFromApi('http://api', mockFetch as unknown as typeof fetch)).rejects.toThrow(
       'Error al cargar las fuentes de datos',
     );
   });
 
   // T-2.5: error handling — network failure
   it('propagates network errors', async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network Error'));
+    const mockFetch = vi.fn().mockRejectedValueOnce(new Error('Network Error'));
 
-    await expect(fetchSourcesFromApi('http://api')).rejects.toThrow('Network Error');
+    await expect(fetchSourcesFromApi('http://api', mockFetch as unknown as typeof fetch)).rejects.toThrow('Network Error');
   });
 
   // Bonus: empty array is valid (no source connected yet)
   it('returns empty array when no sources are connected', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    const mockFetch = vi.fn().mockResolvedValueOnce({
       ok: true,
       json: async () => [],
     } as Response);
 
-    const result = await fetchSourcesFromApi('http://api');
+    const result = await fetchSourcesFromApi('http://api', mockFetch as unknown as typeof fetch);
     expect(result).toEqual([]);
+  });
+
+  // T-2.1: accepts injectable fetch for testability
+  it('uses the injected fetch function instead of global', async () => {
+    const customFetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockSources,
+    } as Response);
+
+    await fetchSourcesFromApi('http://custom-api', customFetch as unknown as typeof fetch);
+
+    expect(customFetch).toHaveBeenCalledWith('http://custom-api/sources', { credentials: 'include' });
   });
 });
 

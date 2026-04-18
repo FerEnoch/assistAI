@@ -65,8 +65,8 @@ export function EvidencePanel({ isOpen, onToggle, isGrounded, hits, structuralMa
       <div style={{
         ...styles.groundingBadge,
         backgroundColor: 'var(--bg-secondary)',
-        borderColor: structuralMatch ? 'var(--accent-info)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
-        color: structuralMatch ? 'var(--accent-info)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
+        borderColor: structuralMatch ? 'var(--accent-blue, #3b82f6)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
+        color: structuralMatch ? 'var(--accent-blue, #3b82f6)' : (isGrounded ? 'var(--success)' : 'var(--warning)'),
       }}>
         <span>{structuralMatch ? '📋' : (isGrounded ? '✓' : '○')}</span>
         <span>
@@ -113,7 +113,7 @@ function EvidenceHitCard({ hit, isStructural }: { hit: EvidenceHit; isStructural
   return (
     <li style={{
       ...styles.hitCard,
-      ...(isStructural ? { borderLeft: '3px solid var(--accent-info)' } : {}),
+      ...(isStructural ? { borderLeft: '3px solid var(--accent-blue, #3b82f6)' } : {}),
     }}>
       <div style={styles.hitHeader}>
         <div style={styles.hitTitleRow}>
@@ -133,8 +133,14 @@ function EvidenceHitCard({ hit, isStructural }: { hit: EvidenceHit; isStructural
       <div style={styles.hitMeta}>
         <span style={styles.metaLabel}>Tipo:</span>
         <span style={styles.metaValue}>
-          {isStructural ? '📋 Estructura directa' : 'Documento'}
+          {isStructural ? '📋 Estructura directa' : (hit.metadata?.docType ?? 'Documento')}
         </span>
+        {hit.metadata?.section && (
+          <>
+            <span style={{ ...styles.metaLabel, marginLeft: '0.5rem' }}>Sección:</span>
+            <span style={styles.metaValue}>{hit.metadata.section}</span>
+          </>
+        )}
       </div>
 
       <p style={styles.hitExcerpt}>

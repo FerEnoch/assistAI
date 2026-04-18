@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import envConfig from '../config';
 
+/**
+ * MIME types supported for ingestion. Must stay in sync with SUPPORTED_MIME_TYPES
+ * in @assistai/shared. Folders are always allowed for navigation/selection context.
+ */
+const SUPPORTED_MIME_TYPES = new Set([
+  'text/plain',
+  'text/markdown',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/pdf',
+  'application/vnd.google-apps.folder',
+]);
+
 interface DriveFile {
   id: string;
   name: string;
@@ -12,6 +24,8 @@ interface DrivePickerProps {
   sourceId: string;
   onSelect: (fileIds: string[], rootLocator: string) => void;
   onCancel: () => void;
+  /** Called when Drive auth has expired and user needs to reconnect */
+  onReauthRequired?: () => void;
   /** When true, only one file can be selected and folders are hidden */
   singleSelect?: boolean;
 }
@@ -21,11 +35,12 @@ interface DrivePickerProps {
  * Allows users to select files or folders for indexing.
  * All copy in Spanish.
  */
-export function DrivePicker({ sourceId, onSelect, onCancel, singleSelect = false }: DrivePickerProps) {
+export function DrivePicker({ sourceId, onSelect, onCancel, onReauthRequired, singleSelect = false }: DrivePickerProps) {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsReauth, setNeedsReauth] = useState(false);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>();
 
   const fetchFiles = useCallback(
@@ -42,7 +57,23 @@ export function DrivePicker({ sourceId, onSelect, onCancel, singleSelect = false
           { credentials: 'include' },
         );
 
-        if (!res.ok) throw new Error('Error al cargar archivos');
+        if (!res.ok) {
+          // Detect reauth signal from API
+          if (res.status === 401) {
+            try {
+              const body = await res.json();
+              if (body?.error?.code === 'REAUTH_REQUIRED') {
+                setNeedsReauth(true);
+                setFiles([]);
+                setSelected(new Set());
+                setNextPageToken(undefined);
+                setError(null);
+                return;
+              }
+            } catch { /* fall through to generic error */ }
+          }
+          throw new Error('Error al cargar archivos');
+        }
 
         const data = await res.json();
         setFiles((prev) => (pageToken ? [...prev, ...data.files] : data.files));
@@ -77,11 +108,21 @@ export function DrivePicker({ sourceId, onSelect, onCancel, singleSelect = false
 
   const handleConfirm = () => {
     const ids = Array.from(selected);
-    const rootLocator = JSON.stringify(ids);
-    onSelect(ids, rootLocator);
+    // Build a human-readable label from selected file names (not serialized IDs)
+    const selectedFiles = files.filter((f) => selected.has(f.id));
+    const label =
+      selectedFiles.length === 1
+        ? selectedFiles[0].name
+        : `${selectedFiles.length} archivos seleccionados`;
+    onSelect(ids, label);
   };
 
   const isFolder = (mimeType: string) => mimeType === 'application/vnd.google-apps.folder';
+
+  // Compute the visible (filtered) list once — used for both rendering and empty state
+  const visibleFiles = files
+    .filter((file) => SUPPORTED_MIME_TYPES.has(file.mimeType))
+    .filter((file) => !singleSelect || !isFolder(file.mimeType));
 
   return (
     <div style={styles.overlay}>
@@ -97,12 +138,28 @@ export function DrivePicker({ sourceId, onSelect, onCancel, singleSelect = false
           Elegí los archivos o carpetas que querés indexar para obtener sugerencias contextuales.
         </p>
 
-        {error && <p style={styles.error}>{error}</p>}
+        {needsReauth && (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyTitle}>Tu conexión con Drive expiró</p>
+            <p style={styles.emptyHint}>
+              Necesitás volver a conectar tu cuenta de Google Drive para acceder a tus archivos.
+            </p>
+            <button
+              style={{ ...styles.loadMoreButton, marginTop: '1rem', color: 'var(--accent-default)', borderColor: 'var(--accent-default)' }}
+              onClick={() => {
+                onCancel();
+                onReauthRequired?.();
+              }}
+            >
+              Re-conectar Google Drive
+            </button>
+          </div>
+        )}
 
-        <div style={styles.fileList}>
-          {files
-          .filter((file) => !singleSelect || !isFolder(file.mimeType))
-          .map((file) => (
+        {error && !needsReauth && <p style={styles.error}>{error}</p>}
+
+        {!needsReauth && <div style={styles.fileList}>
+          {visibleFiles.map((file) => (
             <label key={file.id} style={styles.fileItem}>
               <input
                 type="checkbox"
@@ -115,18 +172,19 @@ export function DrivePicker({ sourceId, onSelect, onCancel, singleSelect = false
             </label>
           ))}
 
-          {files.length === 0 && !loading && (
+          {visibleFiles.length === 0 && !loading && (
             <div style={styles.emptyState}>
-              <p style={styles.emptyTitle}>No se encontraron archivos.</p>
+              <p style={styles.emptyTitle}>No se encontraron archivos compatibles.</p>
               <p style={styles.emptyHint}>
-                Esto puede pasar si la conexión con Drive está desactualizada.
-                Cerrá este panel y reconectá tu Google Drive desde el dashboard.
+                {files.length > 0
+                  ? 'Los archivos en Drive no son de un formato compatible (PDF, DOCX, TXT, Markdown). Verificá que los archivos estén en un formato soportado.'
+                  : 'Esto puede pasar si la conexión con Drive está desactualizada. Cerrá este panel y reconectá tu Google Drive desde el dashboard.'}
               </p>
             </div>
           )}
-        </div>
+        </div>}
 
-        {nextPageToken && (
+        {!needsReauth && nextPageToken && (
           <button
             style={styles.loadMoreButton}
             onClick={() => fetchFiles(nextPageToken)}
@@ -136,20 +194,22 @@ export function DrivePicker({ sourceId, onSelect, onCancel, singleSelect = false
           </button>
         )}
 
-        {loading && files.length === 0 && <p style={styles.loadingText}>Cargando archivos...</p>}
+        {!needsReauth && loading && files.length === 0 && <p style={styles.loadingText}>Cargando archivos...</p>}
 
-        <div style={styles.footer}>
-          <button style={styles.cancelButton} onClick={onCancel}>
-            Cancelar
-          </button>
-          <button
-            style={styles.confirmButton}
-            onClick={handleConfirm}
-            disabled={selected.size === 0}
-          >
-            Indexar {selected.size > 0 ? `(${selected.size})` : ''}
-          </button>
-        </div>
+        {!needsReauth && (
+          <div style={styles.footer}>
+            <button style={styles.cancelButton} onClick={onCancel}>
+              Cancelar
+            </button>
+            <button
+              style={styles.confirmButton}
+              onClick={handleConfirm}
+              disabled={selected.size === 0}
+            >
+              Indexar {selected.size > 0 ? `(${selected.size})` : ''}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

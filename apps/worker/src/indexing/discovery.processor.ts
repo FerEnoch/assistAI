@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, Job } from 'bullmq';
 import { google } from 'googleapis';
-import { decrypt } from '@assistai/shared';
+import { decrypt, isDriveAuthFailure } from '@assistai/shared';
 import {
   QUEUE_NAMES,
   isSupportedMimeType,
@@ -55,70 +55,109 @@ export class DiscoveryProcessor extends WorkerHost {
     const { sourceId, workspaceId, syncRunId, fileIds } = job.data;
     this.logger.log(`[Discovery] Starting for source=${sourceId} syncRun=${syncRunId} fileIds=${fileIds?.length ?? 'all'}`);
 
-    const source = await this.sourceRepo.findOne({ where: { id: sourceId } });
-    if (!source || !source.googleRefreshTokenEnc) {
-      throw new Error(`Source ${sourceId} not found or has no token`);
-    }
-
-    // Decrypt refresh token and get access token
-    const refreshToken = decrypt(source.googleRefreshTokenEnc, this.encryptionKey);
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
-    oauth2Client.setCredentials({ refresh_token: refreshToken });
-    const { credentials } = await oauth2Client.refreshAccessToken();
-
-    if (!credentials.access_token) {
-      throw new Error('Failed to refresh access token for Drive discovery');
-    }
-
-    const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
-    // Choose discovery strategy:
-    // 1. Specific fileIds → fetch only those files (no pagination, no changes API)
-    // 2. changesPageToken exists → incremental sync via Changes API
-    // 3. Otherwise → full scan
-    let result: { discovered: number; enqueued: number };
-    if (shouldUseFileIdStrategy(fileIds)) {
-      result = await this.discoverByFileIds(drive, source, workspaceId, syncRunId, fileIds!);
-    } else if (source.changesPageToken) {
-      result = await this.discoverChanges(drive, source, workspaceId, syncRunId);
-    } else {
-      result = await this.discoverFull(drive, source, workspaceId, syncRunId);
-    }
-
-    // Get and store the start page token for future incremental syncs (A-043)
-    // Only update changesPageToken for full scans — selective syncs should not
-    // advance the changes cursor (other files might have changed in the meantime)
-    if (!shouldUseFileIdStrategy(fileIds)) {
-      const startPageTokenRes = await drive.changes.getStartPageToken({});
-      if (startPageTokenRes.data.startPageToken) {
-        await this.sourceRepo.update(sourceId, {
-          changesPageToken: startPageTokenRes.data.startPageToken,
-          lastSyncedAt: new Date(),
-        });
-      } else {
-        await this.sourceRepo.update(sourceId, {
-          lastSyncedAt: new Date(),
-        });
+    try {
+      const source = await this.sourceRepo.findOne({ where: { id: sourceId } });
+      if (!source || !source.googleRefreshTokenEnc) {
+        throw new Error(`Source ${sourceId} not found or has no token`);
       }
-    } else {
-      await this.sourceRepo.update(sourceId, { lastSyncedAt: new Date() });
+
+      // Decrypt refresh token and get access token
+      const refreshToken = decrypt(source.googleRefreshTokenEnc, this.encryptionKey);
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+      );
+      oauth2Client.setCredentials({ refresh_token: refreshToken });
+      const { credentials } = await oauth2Client.refreshAccessToken();
+
+      if (!credentials.access_token) {
+        throw new Error('Failed to refresh access token for Drive discovery');
+      }
+
+      const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+      // Choose discovery strategy:
+      // 1. Specific fileIds → fetch only those files (no pagination, no changes API)
+      // 2. changesPageToken exists → incremental sync via Changes API
+      // 3. Otherwise → full scan
+      let result: { discovered: number; enqueued: number };
+      if (shouldUseFileIdStrategy(fileIds)) {
+        result = await this.discoverByFileIds(drive, source, workspaceId, syncRunId, fileIds!);
+      } else if (source.changesPageToken) {
+        result = await this.discoverChanges(drive, source, workspaceId, syncRunId);
+      } else {
+        result = await this.discoverFull(drive, source, workspaceId, syncRunId);
+      }
+
+      // Get and store the start page token for future incremental syncs (A-043)
+      // Only update changesPageToken for full scans — selective syncs should not
+      // advance the changes cursor (other files might have changed in the meantime)
+      if (!shouldUseFileIdStrategy(fileIds)) {
+        const startPageTokenRes = await drive.changes.getStartPageToken({});
+        if (startPageTokenRes.data.startPageToken) {
+          await this.sourceRepo.update(sourceId, {
+            changesPageToken: startPageTokenRes.data.startPageToken,
+            lastSyncedAt: new Date(),
+          });
+        } else {
+          await this.sourceRepo.update(sourceId, {
+            lastSyncedAt: new Date(),
+          });
+        }
+      } else {
+        await this.sourceRepo.update(sourceId, { lastSyncedAt: new Date() });
+      }
+
+      // Update sync run with discovered count and mark complete (A-045)
+      await this.syncRunRepo.update(syncRunId, {
+        discoveredCount: result.discovered,
+        status: 'completed',
+        finishedAt: new Date(),
+      });
+
+      // Restore source to connected (clear syncing) on success
+      await this.sourceRepo.update(sourceId, { status: 'connected' });
+
+      this.logger.log(
+        `[Discovery] Complete: source=${sourceId}, discovered=${result.discovered}, enqueued=${result.enqueued}`,
+      );
+
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+
+      // Issue 2: detect Drive auth failures → mark source needs_reauth
+      if (isDriveAuthFailure(err)) {
+        this.logger.error(`[Discovery] Auth failure for source=${sourceId}: ${message}`);
+        try {
+          await this.sourceRepo.update(sourceId, { status: 'needs_reauth' as any });
+        } catch (reauthErr) {
+          this.logger.error(
+            `[Discovery] Failed to mark source as needs_reauth: ${(reauthErr as Error).message}`,
+          );
+        }
+      } else {
+        // Non-auth failure — restore source to error state
+        try {
+          await this.sourceRepo.update(sourceId, { status: 'error' });
+        } catch (_) { /* best-effort */ }
+      }
+
+      // Issue 1: always finalize sync run so it never stays 'running' forever
+      try {
+        await this.syncRunRepo.update(syncRunId, {
+          status: 'failed',
+          finishedAt: new Date(),
+          errorSummary: message.slice(0, 1000),
+        });
+      } catch (runErr) {
+        this.logger.error(
+          `[Discovery] Failed to finalize sync run ${syncRunId}: ${(runErr as Error).message}`,
+        );
+      }
+
+      throw err;
     }
-
-    // Update sync run with discovered count and mark complete (A-045)
-    await this.syncRunRepo.update(syncRunId, {
-      discoveredCount: result.discovered,
-      status: 'completed',
-      finishedAt: new Date(),
-    });
-
-    this.logger.log(
-      `[Discovery] Complete: source=${sourceId}, discovered=${result.discovered}, enqueued=${result.enqueued}`,
-    );
-
-    return result;
   }
 
   /**

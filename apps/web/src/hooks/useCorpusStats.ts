@@ -1,16 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import envConfig from '../config';
 
-export interface DocTypeBreakdown {
-  docType: string;
-  count: number;
-  percentage: number;
-}
-
 export interface CorpusStats {
   totalDocuments: number;
   totalChunks: number;
-  docTypeBreakdown: DocTypeBreakdown[];
+  totalTemplates: number;
+  docTypeBreakdown: Record<string, number>;
 }
 
 export interface UseCorpusStatsReturn {
@@ -32,7 +27,7 @@ export function useCorpusStats(): UseCorpusStatsReturn {
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${envConfig.apiUrl}/documents/stats`, {
+      const res = await fetch(`${envConfig.apiUrl}/library/stats`, {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Error al cargar estadísticas del corpus');

@@ -75,23 +75,26 @@ describe('MetadataExtractor', () => {
     expect(extractor.extract('SE RESUELVE hacer lugar a la excepción').section).toBe('fallo');
   });
 
-  // clauseType tests (T-3.12 → T-3.14)
-  it('returns confidencialidad clauseType', () => {
+  // clauseType tests (T-3.12 → T-3.14) — clauseType only when section === 'clausulas'
+  it('returns confidencialidad clauseType when section is clausulas', () => {
     expect(
       extractor.extract('CLÁUSULA PRIMERA: información confidencial del negocio').clauseType,
     ).toBe('confidencialidad');
-    expect(extractor.extract('secreto comercial de la empresa').clauseType).toBe(
-      'confidencialidad',
-    );
   });
-  it('returns penalidad clauseType', () => {
-    expect(extractor.extract('CLÁUSULA PENAL: una multa de diez mil pesos').clauseType).toBe(
+  it('returns null clauseType when section is not clausulas even with matching keywords', () => {
+    // "secreto comercial" alone — section won't be 'clausulas'
+    expect(extractor.extract('secreto comercial de la empresa').clauseType).toBeNull();
+  });
+  it('returns penalidad clauseType when section is clausulas', () => {
+    expect(extractor.extract('CLÁUSULA SEGUNDA: una cláusula penal con multa de diez mil pesos').clauseType).toBe(
       'penalidad',
     );
-    expect(extractor.extract('penalización por incumplimiento').clauseType).toBe('penalidad');
   });
-  it('returns fuerza_mayor clauseType', () => {
-    expect(extractor.extract('caso de fuerza mayor o caso fortuito').clauseType).toBe(
+  it('returns null clauseType for penalización outside clausulas section', () => {
+    expect(extractor.extract('penalización por incumplimiento').clauseType).toBeNull();
+  });
+  it('returns fuerza_mayor clauseType when section is clausulas', () => {
+    expect(extractor.extract('CLÁUSULA TERCERA: caso de fuerza mayor o caso fortuito').clauseType).toBe(
       'fuerza_mayor',
     );
   });
@@ -107,5 +110,21 @@ describe('MetadataExtractor', () => {
     const result = extractor.extract('cualquier texto');
     expect(result.isTemplate).toBe(false);
     expect(result.sourceTemplateId).toBeNull();
+  });
+
+  // section default is null (T-4.4)
+  it('returns null section when no section pattern matches', () => {
+    const result = extractor.extract('cualquier texto sin sección');
+    expect(result.section).toBeNull();
+  });
+
+  // docHint precedence (T-4.3) — content patterns beat hint
+  it('content pattern prevails over docHint', () => {
+    const result = extractor.extract('El actor presenta una demanda civil', 'CONTRATO');
+    expect(result.docType).toBe('DEMANDA');
+  });
+  it('docHint used as fallback when content has no patterns', () => {
+    const result = extractor.extract('texto genérico sin patrones legales', 'CONTRATO');
+    expect(result.docType).toBe('CONTRATO');
   });
 });

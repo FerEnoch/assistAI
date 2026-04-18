@@ -118,6 +118,7 @@ export function useEditorSetup({ sessionId, evidencePanelOpen, activeTemplateId,
         onEvidenceWithHits?.();
       }
     },
+    onCompletionStart: clearEvidence,
   });
 
   // ── CRITICAL INVARIANT: sync feedbackRef with latest sendFeedback reference ──

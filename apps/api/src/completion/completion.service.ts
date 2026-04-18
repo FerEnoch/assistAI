@@ -14,7 +14,7 @@ import {
   RETRIEVAL_CONFIG,
   STRUCTURAL_CONFIG,
 } from '@assistai/shared';
-import type { CompletionRequestPayload, RetrievalHit } from '@assistai/shared';
+import type { CompletionRequestPayload, RetrievalHit, ChunkMetadata } from '@assistai/shared';
 import { RetrievalService } from '../retrieval/retrieval.service';
 import { QUERY_EMBEDDING, type QueryEmbeddingPort } from '../retrieval/query-embedding.token';
 import { PromptAssembler } from './prompt-assembler';
@@ -200,10 +200,15 @@ export class CompletionService {
             // Detect metadata filters from the prefix
             const metadataFilter = this.metadataAwareRetrieval.detectFilters(payload.prefix);
 
+            // Boost retrieval when template is active: wider net for relevant chunks
+            const templateBoost = payload.templateId
+              ? { topK: RETRIEVAL_CONFIG.topK + 2, similarityThreshold: RETRIEVAL_CONFIG.similarityThreshold - 0.07 }
+              : {};
+
             evidence = await this.retrievalService.findSimilarChunks(
               workspaceId,
               queryEmbedding,
-              { filters: metadataFilter ?? undefined },
+              { filters: metadataFilter ?? undefined, ...templateBoost },
             );
 
             // Fallback: if filters were applied but got 0 hits, retry without filters
@@ -256,7 +261,7 @@ export class CompletionService {
           const sections = await this.templateSectionRepo.find({
             where: { templateId: payload.templateId },
             relations: { template: true },
-            order: { sectionIndex: 'ASC' },
+            order: { order: 'ASC' },
           });
 
           const validSections = sections.filter(
@@ -267,7 +272,7 @@ export class CompletionService {
             const templateHits: RetrievalHit[] = validSections.map((section) => ({
               chunkId: section.id,
               documentId: section.templateId,
-              content: section.content,
+              content: section.sampleContent ?? '',
               similarity: 1.0,
               documentTitle: section.name,
               metadata: {
@@ -275,12 +280,13 @@ export class CompletionService {
                 sourceTemplateId: payload.templateId!,
                 docType: null,
                 section: null,
-                clauseType: null,
+                clauseType: (section.clauseType as ChunkMetadata['clauseType']) ?? null,
                 tags: [],
               },
             }));
 
-            evidence = [...templateHits, ...evidence];
+            // Re-rank: template hits first, then normal evidence
+            evidence = this.reRankWithTemplate(templateHits, evidence);
           }
         } catch (err) {
           // Template retrieval failure is non-fatal — continue with normal evidence
@@ -367,6 +373,7 @@ export class CompletionService {
             documentTitle: hit.documentTitle,
             similarity: hit.similarity,
             excerpt: hit.content.slice(0, 200),
+            metadata: hit.metadata ?? null,
           })),
         }),
       });
@@ -462,6 +469,19 @@ export class CompletionService {
     } catch (err) {
       this.logger.warn(`[Structural] Failed to update completion record: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  /**
+   * Re-rank evidence by placing template hits first, followed by normal hits.
+   * Deduplicates any normal hit whose chunkId already appears in template hits.
+   */
+  private reRankWithTemplate(
+    templateHits: RetrievalHit[],
+    normalHits: RetrievalHit[],
+  ): RetrievalHit[] {
+    const templateChunkIds = new Set(templateHits.map((h) => h.chunkId));
+    const dedupedNormal = normalHits.filter((h) => !templateChunkIds.has(h.chunkId));
+    return [...templateHits, ...dedupedNormal];
   }
 
   /**

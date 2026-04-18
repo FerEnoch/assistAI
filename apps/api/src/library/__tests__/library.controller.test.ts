@@ -8,10 +8,10 @@ const mockStats: LibraryStatsDto = {
   totalDocuments: 12,
   totalChunks: 480,
   totalTemplates: 3,
-  docTypeBreakdown: [
-    { docType: 'CONTRATO', count: 320, percentage: 67 },
-    { docType: 'INFORME', count: 160, percentage: 33 },
-  ],
+  docTypeBreakdown: {
+    CONTRATO: 320,
+    INFORME: 160,
+  },
 };
 
 describe('LibraryController', () => {
@@ -36,7 +36,7 @@ describe('LibraryController', () => {
 
       expect(result).toEqual(mockStats);
       expect(result.totalTemplates).toBe(3);
-      expect(result.docTypeBreakdown).toHaveLength(2);
+      expect(result.docTypeBreakdown).toEqual({ CONTRATO: 320, INFORME: 160 });
     });
 
     it('passes workspaceId from session to the service', async () => {

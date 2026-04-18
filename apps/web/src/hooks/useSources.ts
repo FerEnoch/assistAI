@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router';
 import envConfig from '../config';
 
 export interface Source {
   id: string;
   workspaceId: string;
   sourceType: 'google_drive';
-  status: 'connected' | 'syncing' | 'error' | 'disconnected';
+  status: 'connected' | 'syncing' | 'error' | 'disconnected' | 'needs_reauth';
+  connectedAccountEmail: string | null;
   rootLocator: string | null;
   lastSyncedAt: string | null;
   createdAt: string;
@@ -27,6 +29,8 @@ export function useSources(): UseSourcesReturn {
   const [sources, setSources] = useState<Source[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const hasHandledRedirect = useRef(false);
 
   const fetchSources = useCallback(async () => {
     setIsLoading(true);
@@ -53,6 +57,15 @@ export function useSources(): UseSourcesReturn {
     void fetchSources();
   }, [fetchSources]);
 
+  // One-shot refetch when returning from Google OAuth (?source=connected)
+  useEffect(() => {
+    if (searchParams.get('source') === 'connected' && !hasHandledRedirect.current) {
+      hasHandledRedirect.current = true;
+      void fetchSources();
+      window.history.replaceState({}, '', '/library');
+    }
+  }, [searchParams, fetchSources]);
+
   return { sources, isLoading, error, refetch: fetchSources };
 }
 
@@ -60,8 +73,8 @@ export function useSources(): UseSourcesReturn {
  * Pure fetch function — extracted for testability without React hooks.
  * @internal
  */
-export async function fetchSourcesFromApi(apiUrl: string): Promise<Source[]> {
-  const res = await fetch(`${apiUrl}/sources`, { credentials: 'include' });
+export async function fetchSourcesFromApi(apiUrl: string, fetchFn: typeof fetch = fetch): Promise<Source[]> {
+  const res = await fetchFn(`${apiUrl}/sources`, { credentials: 'include' });
   if (!res.ok) {
     throw new Error('Error al cargar las fuentes de datos');
   }

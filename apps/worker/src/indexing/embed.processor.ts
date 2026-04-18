@@ -102,16 +102,24 @@ export class EmbedProcessor extends WorkerHost {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
 
-      // Mark document as failed
-      await this.dataSource.query(
-        `UPDATE documents
-         SET ingest_status = 'failed',
-             error_reason = $1
-         WHERE id = $2`,
-        [`EMBEDDING_ERROR: ${message}`, documentId],
-      );
+      const maxAttempts = job.opts?.attempts ?? 1;
+      const isFinalAttempt = job.attemptsMade >= maxAttempts - 1;
 
-      this.logger.error(`[Embed] Error: doc=${documentId} — ${message}`);
+      if (isFinalAttempt) {
+        // Terminal failure — mark as failed
+        await this.dataSource.query(
+          `UPDATE documents
+           SET ingest_status = 'failed',
+               error_reason = $1
+           WHERE id = $2`,
+          [`EMBEDDING_ERROR: ${message}`, documentId],
+        );
+        this.logger.error(`[Embed] Terminal failure (attempt ${job.attemptsMade + 1}/${maxAttempts}): doc=${documentId} — ${message}`);
+      } else {
+        // Non-final attempt — keep in processing so UI doesn't show terminal failure
+        this.logger.warn(`[Embed] Retryable failure (attempt ${job.attemptsMade + 1}/${maxAttempts}): doc=${documentId} — ${message}`);
+      }
+
       throw err; // Re-throw for BullMQ retry
     }
   }

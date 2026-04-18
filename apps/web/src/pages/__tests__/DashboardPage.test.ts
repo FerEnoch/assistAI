@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Source } from '../../hooks/useSources';
+import { getSourceSectionState } from '../LibraryPage';
 
 // ──────────────────────────────────────────────
 // Source state helpers — previously tested in DashboardPage.
@@ -96,6 +97,40 @@ describe('LibraryPage — source state logic (migrated from Dashboard)', () => {
       makeSource({ id: 'b', status: 'error' }),
     ];
     expect(findConnectedSource(sources)).toBeUndefined();
+  });
+});
+
+describe('LibraryPage — getSourceSectionState (T-3.12)', () => {
+  it('returns "loading" when isLoading is true', () => {
+    expect(getSourceSectionState([], true, null)).toBe('loading');
+  });
+
+  it('returns "error" when error is set', () => {
+    expect(getSourceSectionState([], false, 'fail')).toBe('error');
+  });
+
+  it('returns "disconnected" when sources is empty', () => {
+    expect(getSourceSectionState([], false, null)).toBe('disconnected');
+  });
+
+  it('returns "connected" when a source has status connected', () => {
+    expect(getSourceSectionState([{ status: 'connected' }], false, null)).toBe('connected');
+  });
+
+  it('returns "syncing" when a source has status syncing', () => {
+    expect(getSourceSectionState([{ status: 'syncing' }], false, null)).toBe('syncing');
+  });
+
+  it('returns "needs_reauth" when a source has status needs_reauth', () => {
+    expect(getSourceSectionState([{ status: 'needs_reauth' }], false, null)).toBe('needs_reauth');
+  });
+
+  it('loading takes priority over error', () => {
+    expect(getSourceSectionState([], true, 'some error')).toBe('loading');
+  });
+
+  it('returns "disconnected" when all sources are disconnected/error', () => {
+    expect(getSourceSectionState([{ status: 'disconnected' }, { status: 'error' }], false, null)).toBe('disconnected');
   });
 });
 
@@ -202,3 +237,59 @@ describe('LibraryPage — handleIndexFromDrive double-submit prevention', () => 
   });
 });
 
+// ─── FIX 9 & 10: Error path keeps picker open (T-3.10) ──────────────────────
+
+describe('LibraryPage — picker dismiss on error (T-3.10 / Scenario 5.2)', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Simulates the handleIndexFromDrive logic:
+   * On success → closes modal (returns true).
+   * On error → does NOT close modal (returns false).
+   */
+  async function simulateIndexFromDrive(
+    fetchFn: typeof fetch,
+    apiUrl: string,
+    sourceId: string,
+    rootLocator: string,
+    csrfToken: string,
+  ): Promise<{ closed: boolean; feedback: string }> {
+    const res = await fetchFn(`${apiUrl}/sources/${sourceId}/select`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify({ rootLocator }),
+    });
+
+    if (res.ok) {
+      return { closed: true, feedback: 'Indexación iniciada' };
+    }
+    // On error: picker NOT closed (Scenario 5.2)
+    return { closed: false, feedback: 'Error al iniciar la indexación. Intentá de nuevo.' };
+  }
+
+  it('on success: picker is closed', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
+
+    const result = await simulateIndexFromDrive(fetch, 'http://api', 'src-1', 'root', 'tok');
+    expect(result.closed).toBe(true);
+    expect(result.feedback).toBe('Indexación iniciada');
+  });
+
+  it('on error (ok: false): picker is NOT closed', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500 } as Response);
+
+    const result = await simulateIndexFromDrive(fetch, 'http://api', 'src-1', 'root', 'tok');
+    expect(result.closed).toBe(false);
+    expect(result.feedback).toContain('Error');
+  });
+});

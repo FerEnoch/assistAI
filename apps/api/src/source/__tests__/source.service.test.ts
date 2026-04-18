@@ -24,6 +24,7 @@ describe('SourceService', () => {
       save: vi.fn((entity: Record<string, unknown>) =>
         Promise.resolve({ ...entity, id: entity.id ?? 'src-uuid' }),
       ),
+      update: vi.fn().mockResolvedValue({ affected: 1 }),
     };
 
     syncRunRepo = {
@@ -87,6 +88,9 @@ describe('SourceService', () => {
       // Token should be encrypted, not plaintext
       expect(source.googleRefreshTokenEnc).not.toContain('1//');
       expect(source.googleRefreshTokenEnc).toContain(':'); // iv:authTag:ciphertext format
+
+      // Email stored in connectedAccountEmail, NOT rootLocator
+      expect(source.connectedAccountEmail).toBe('user@gmail.com');
     });
 
     it('should reject mismatched session IDs', async () => {
@@ -229,7 +233,8 @@ describe('SourceService', () => {
         workspaceId: 'ws-1',
         sourceType: 'google_drive',
         status: 'connected',
-        rootLocator: 'user@gmail.com',
+        connectedAccountEmail: 'user@gmail.com',
+        rootLocator: '2 archivos seleccionados',
         lastSyncedAt: null,
         googleRefreshTokenEnc: 'encrypted-value',
       });

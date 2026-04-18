@@ -75,6 +75,7 @@ export class StructuralMatchService {
             documentTitle: hit.documentTitle,
             similarity: hit.similarity,
             excerpt: hit.content.slice(0, 200),
+            metadata: hit.metadata ?? null,
           },
         ],
       }),

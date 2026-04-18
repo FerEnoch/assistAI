@@ -98,3 +98,66 @@ describe('useTemplateDocuments — fetch logic', () => {
     );
   });
 });
+
+describe('useTemplateDocuments — state transitions', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('fetchTemplateDocuments — success returns array of documents', async () => {
+    const docs = [
+      { id: 'doc-1', title: 'Contract A', ingestStatus: 'indexed', createdAt: '2026-01-01' },
+      { id: 'doc-2', title: 'Contract B', ingestStatus: 'processing', createdAt: '2026-01-02' },
+    ];
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => docs } as Response);
+
+    const result = await fetchTemplateDocuments('http://api', 'tpl-1');
+    expect(result).toHaveLength(2);
+    expect(result[0].title).toBe('Contract A');
+    expect(result[1].ingestStatus).toBe('processing');
+  });
+
+  it('fetchTemplateDocuments — error state on network failure', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Network error'));
+
+    await expect(fetchTemplateDocuments('http://api', 'tpl-1')).rejects.toThrow('Network error');
+  });
+
+  it('fetchTemplateDocuments — error state on server error (500)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500 } as Response);
+
+    await expect(fetchTemplateDocuments('http://api', 'tpl-1')).rejects.toThrow('Error al cargar documentos');
+  });
+
+  it('addDocumentToTemplate — throws on 403 (cross-workspace)', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 403 } as Response);
+
+    await expect(
+      addDocumentToTemplate('http://api', 'tpl-1', 'doc-other', 'csrf-xyz'),
+    ).rejects.toThrow('Error al asociar documento');
+  });
+
+  it('removeDocumentFromTemplate — succeeds with 204 status', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 204 } as Response);
+
+    // Should NOT throw — 204 is acceptable
+    await expect(
+      removeDocumentFromTemplate('http://api', 'tpl-1', 'doc-1', 'csrf-xyz'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('removeDocumentFromTemplate — throws on 500 error', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 500 } as Response);
+
+    await expect(
+      removeDocumentFromTemplate('http://api', 'tpl-1', 'doc-1', 'csrf-xyz'),
+    ).rejects.toThrow('Error al quitar documento');
+  });
+});

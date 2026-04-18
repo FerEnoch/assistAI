@@ -31,6 +31,10 @@ export class ContentSource {
   @Column({ type: 'int', default: 1, name: 'key_version' })
   keyVersion!: number;
 
+  /** Email of the Google account connected via OAuth. Identity field — never overwritten by file selection. */
+  @Column({ type: 'varchar', length: 320, nullable: true, name: 'connected_account_email' })
+  connectedAccountEmail?: string | null;
+
   @Column({ type: 'varchar', length: 2048, nullable: true, name: 'root_locator' })
   rootLocator?: string | null;
 
@@ -38,8 +42,8 @@ export class ContentSource {
   @Column({ type: 'text', array: true, nullable: true, name: 'selected_file_ids' })
   selectedFileIds?: string[] | null;
 
-  @Column({ type: 'enum', enum: ['connected', 'syncing', 'error', 'disconnected'], default: 'connected' })
-  status!: 'connected' | 'syncing' | 'error' | 'disconnected';
+  @Column({ type: 'enum', enum: ['connected', 'syncing', 'error', 'disconnected', 'needs_reauth'], default: 'connected' })
+  status!: 'connected' | 'syncing' | 'error' | 'disconnected' | 'needs_reauth';
 
   @Column({ type: 'timestamptz', nullable: true, name: 'last_synced_at' })
   lastSyncedAt?: Date | null;

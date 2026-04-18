@@ -5,7 +5,9 @@ import { getCsrfToken } from '../auth/csrf';
 export interface TemplateSection {
   id?: string;
   name: string;
-  content: string;
+  sampleContent: string;
+  order: number;
+  clauseType?: string | null;
 }
 
 export interface Template {
@@ -23,7 +25,7 @@ export interface CreateTemplateInput {
   name: string;
   docType: string;
   description?: string;
-  sections: Omit<TemplateSection, 'id'>[];
+  sections: Array<{ name: string; sampleContent: string; order: number; clauseType?: string }>;
 }
 
 export interface UpdateTemplateInput extends CreateTemplateInput {

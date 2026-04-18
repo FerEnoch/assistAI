@@ -58,14 +58,19 @@ export interface DiscoveryJobPayload {
 export interface ParseJobPayload {
   documentId: string;
   workspaceId: string;
-  sourceId: string;
+  sourceId: string | null;
   externalDocumentId: string;
   mimeType: string;
   title: string;
   sizeBytes: number;
-  syncRunId: string;
+  syncRunId: string | null;
   /** Encrypted refresh token for Drive API access */
   refreshTokenEnc: string;
+  /**
+   * When present, the processor reads the file from this local path
+   * instead of downloading from Drive. Used for local file uploads.
+   */
+  filePath?: string;
 }
 
 export interface EmbedJobPayload {

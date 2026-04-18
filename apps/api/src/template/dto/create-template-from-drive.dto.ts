@@ -1,4 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateTemplateSectionDto } from './create-template-section.dto';
 
 export class CreateTemplateFromDriveDto {
   @IsString()
@@ -23,5 +25,7 @@ export class CreateTemplateFromDriveDto {
 
   @IsArray()
   @IsOptional()
-  sections?: Array<{ name: string; content: string }>;
+  @ValidateNested({ each: true })
+  @Type(() => CreateTemplateSectionDto)
+  sections?: CreateTemplateSectionDto[];
 }

@@ -140,8 +140,9 @@ describe('CompletionService — template-aware retrieval', () => {
         id: 'sec-1',
         templateId: TEMPLATE_ID,
         name: 'Encabezado',
-        content: 'Template section content',
-        sectionIndex: 0,
+        sampleContent: 'Template section content',
+        order: 0,
+        clauseType: null,
         template: { workspaceId: WORKSPACE_ID },
       },
     ]);

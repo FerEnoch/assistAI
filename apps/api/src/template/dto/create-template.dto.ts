@@ -3,7 +3,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsArray,
-  ArrayMinSize,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -22,9 +21,9 @@ export class CreateTemplateDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateTemplateSectionDto)
-  sections!: CreateTemplateSectionDto[];
+  sections?: CreateTemplateSectionDto[];
 }

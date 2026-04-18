@@ -10,7 +10,7 @@
 - [ ] 2.2 Implementar `GET /templates/:id/documents` en `TemplateController` — retorna lista de documentos asociados (id, title, ingestStatus, createdAt)
 - [ ] 2.3 Implementar `POST /templates/:id/documents` — valida que `documentId` pertenezca al workspace, crea fila en `template_documents`, retorna 201
 - [ ] 2.4 Implementar `DELETE /templates/:id/documents/:docId` — elimina la fila de `template_documents`, retorna 204
-- [ ] 2.5 Agregar guard de workspace en los tres endpoints (403 si template o documento no pertenece al workspace del usuario)
+- [x] 2.5 Agregar guard de workspace en los tres endpoints (403 si template o documento no pertenece al workspace del usuario)
 
 ## 3. Backend — endpoint template desde upload local
 
@@ -22,7 +22,7 @@
 ## 4. Backend — endpoint template desde Drive
 
 - [ ] 4.1 Crear `POST /templates/from-drive` en `TemplateController` con body DTO `{ fileId, sourceId, name, docType, description?, sections? }`
-- [ ] 4.2 Validar que `sourceId` pertenezca al workspace del usuario (403 si no)
+- [x] 4.2 Validar que `sourceId` pertenezca al workspace del usuario (403 si no)
 - [ ] 4.3 Implementar `TemplateService.createFromDrive()`: crear Template → crear Document con `externalDocumentId = fileId` y `sourceId` → encolar ingest → crear asociación en `template_documents`
 - [ ] 4.4 Manejar el caso donde el fileId ya existe como Document en el workspace (retornar 409 Conflict o reutilizar el documento existente — decisión: reutilizar y solo crear nueva asociación)
 
@@ -49,15 +49,15 @@
 - [ ] 7.3 Reemplazar el botón simple "+ Nuevo Template" por un menú/dropdown con tres opciones: "Definir manualmente", "Subir archivo local", "Importar desde Drive"
 - [ ] 7.4 "Definir manualmente" abre el `TemplateModal` existente (sin cambios)
 - [ ] 7.5 "Subir archivo local" abre un `<input type="file" accept=".pdf,.docx,.txt">` oculto, al seleccionar archivo abre un mini-modal de confirmación (nombre + tipo + confirmar)
-- [ ] 7.6 "Importar desde Drive" — si Drive no está conectado, muestra estado inline con botón de conexión; si está conectado, abre DrivePicker en single-select mode
+- [x] 7.6 "Importar desde Drive" — si Drive no está conectado, muestra estado inline con botón de conexión; si está conectado, abre DrivePicker en single-select mode
 - [ ] 7.7 Adaptar `DrivePicker` para aceptar una prop `singleSelect?: boolean` que limita la selección a un solo archivo y oculta folders
 
 ## 8. Frontend — Library UI: corpus por template
 
-- [ ] 8.1 Reemplazar el `StatsCard` del panel lateral con un componente `TemplateCorpusPanel` que se activa al seleccionar/expandir un template
-- [ ] 8.2 En `TemplateCard`, agregar indicador de corpus: "N documentos" o "Sin corpus"
+- [x] 8.1 Reemplazar el `StatsCard` del panel lateral con un componente `TemplateCorpusPanel` que se activa al seleccionar/expandir un template
+- [x] 8.2 En `TemplateCard`, agregar indicador de corpus: "N documentos" o "Sin corpus"
 - [ ] 8.3 Al expandir un template (click en la card o en un botón dedicado), mostrar la lista de documentos asociados con nombre, estado de ingest (badge: Indexado / Procesando / Error) y botón "Quitar"
-- [ ] 8.4 Agregar botón "Agregar documento" que abre un selector de documentos del workspace (lista de documents ya indexados, filtrando los ya asociados)
+- [x] 8.4 Agregar botón "Agregar documento" que abre un selector de documentos del workspace (lista de documents ya indexados, filtrando los ya asociados)
 - [ ] 8.5 Mostrar `IndexingStatus` en Library (puede ser un componente colapsable en el header de la página o al pie de la lista)
 
 ## 9. Frontend — empty state y estados de error
@@ -70,7 +70,7 @@
 
 - [ ] 10.1 Test unitario: `TemplateService.createFromUpload()` — verifica que crea Template, Document y asociación en `template_documents`
 - [ ] 10.2 Test unitario: `TemplateService.createFromDrive()` — verifica que reutiliza Document si fileId ya existe
-- [ ] 10.3 Test de controller: `GET /templates/:id/documents` — verifica 403 en acceso cross-workspace
-- [ ] 10.4 Test de controller: `POST /templates/:id/documents` — verifica que `documentId` debe pertenecer al workspace
-- [ ] 10.5 Test de controller: `DELETE /templates/:id/documents/:docId` — verifica 204 y que el documento no se elimina
-- [ ] 10.6 Test frontend: `useTemplateDocuments` — verifica estados de loading/error/success con fetch mock
+- [x] 10.3 Test de controller: `GET /templates/:id/documents` — verifica 403 en acceso cross-workspace
+- [x] 10.4 Test de controller: `POST /templates/:id/documents` — verifica que `documentId` debe pertenecer al workspace
+- [x] 10.5 Test de controller: `DELETE /templates/:id/documents/:docId` — verifica 204 y que el documento no se elimina
+- [x] 10.6 Test frontend: `useTemplateDocuments` — verifica estados de loading/error/success con fetch mock

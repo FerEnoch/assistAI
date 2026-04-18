@@ -19,7 +19,7 @@ export function AssistEditor() {
   const [evidencePanelOpen, setEvidencePanelOpen] = useState(false);
   const { sessionId, isCreatingSession } = useEditorSession();
   const { templates } = useTemplates();
-  const { activeTemplateId, setActiveTemplate } = useActiveTemplate();
+  const { activeTemplateId, activeTemplate, setActiveTemplate } = useActiveTemplate();
   const { editor, status, error, evidence, clearEvidence, updateEvidence } =
     useEditorSetup({
       sessionId,
@@ -28,7 +28,17 @@ export function AssistEditor() {
       onEvidenceWithHits: () => setEvidencePanelOpen(true),
     });
 
-  const activeTemplate = templates.find((t) => t.id === activeTemplateId) ?? null;
+  const handleSelectTemplate = useCallback(
+    (templateId: string | null) => {
+      if (!templateId) {
+        setActiveTemplate(null);
+        return;
+      }
+      const found = templates.find((t) => t.id === templateId) ?? null;
+      setActiveTemplate(found);
+    },
+    [templates, setActiveTemplate],
+  );
 
   const toggleEvidencePanel = useCallback(() => {
     setEvidencePanelOpen((prev) => !prev);
@@ -54,7 +64,7 @@ export function AssistEditor() {
           <TemplateSelector
             templates={templates}
             activeTemplateId={activeTemplateId}
-            onSelect={setActiveTemplate}
+            onSelect={handleSelectTemplate}
           />
         </div>
       </div>
@@ -68,19 +78,13 @@ export function AssistEditor() {
             </div>
           )}
 
-          {/* Document type badge */}
-          {evidence.docType && (
-            <div style={{ padding: '0.25rem 0.75rem 0' }}>
-              <DocumentTypeBadge docType={evidence.docType} />
-            </div>
-          )}
-
         {/* Status bar */}
         <StatusBar
           status={status}
           error={error}
           structuralMatch={evidence.structuralMatch}
           documentTitle={evidence.hits[0]?.documentTitle}
+          docType={evidence.docType}
         />
 
         {/* Editor */}
@@ -114,11 +118,13 @@ function StatusBar({
   error,
   structuralMatch,
   documentTitle,
+  docType,
 }: {
   status: CompletionStatus;
   error: string | null;
   structuralMatch?: boolean;
   documentTitle?: string | null;
+  docType?: string | null;
 }) {
   const getStatusDisplay = (): { text: string; color: string } => {
     switch (status) {
@@ -130,7 +136,7 @@ function StatusBar({
         if (structuralMatch && documentTitle) {
           return {
             text: `Completando con estructura de: ${documentTitle}`,
-            color: 'var(--accent-info)',
+            color: 'var(--accent-blue, #3b82f6)',
           };
         }
         return { text: 'Generando sugerencia (Tab para aceptar, Esc para descartar)', color: 'var(--success)' };
@@ -148,6 +154,7 @@ function StatusBar({
 
   return (
     <div style={{ ...styles.statusBar, borderLeftColor: display.color }}>
+      {docType && <DocumentTypeBadge docType={docType} />}
       <span style={{ ...styles.statusDot, backgroundColor: display.color }} />
       <span style={styles.statusText}>{display.text}</span>
     </div>

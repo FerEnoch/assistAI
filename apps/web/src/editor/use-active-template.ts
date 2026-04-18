@@ -1,31 +1,36 @@
 import { useState, useCallback } from 'react';
+import type { Template } from '../hooks/useTemplates';
 
 const STORAGE_KEY = 'assistai_active_template';
 
 interface ActiveTemplateState {
   activeTemplateId: string | null;
-  setActiveTemplate: (templateId: string | null) => void;
+  activeTemplate: Template | null;
+  setActiveTemplate: (template: Template | null) => void;
   clearTemplate: () => void;
 }
 
 /**
  * Manages the active template selection in the editor.
- * Persists to sessionStorage so it survives page refreshes within a session.
+ * Stores the full Template object so consumers don't need a second lookup.
+ * Persists to sessionStorage as JSON so it survives page refreshes within a session.
  */
 export function useActiveTemplate(): ActiveTemplateState {
-  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(() => {
+  const [activeTemplate, setActiveTemplateState] = useState<Template | null>(() => {
     try {
-      return sessionStorage.getItem(STORAGE_KEY);
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as Template;
     } catch {
       return null;
     }
   });
 
-  const setActiveTemplate = useCallback((templateId: string | null) => {
-    setActiveTemplateId(templateId);
+  const setActiveTemplate = useCallback((template: Template | null) => {
+    setActiveTemplateState(template);
     try {
-      if (templateId) {
-        sessionStorage.setItem(STORAGE_KEY, templateId);
+      if (template) {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(template));
       } else {
         sessionStorage.removeItem(STORAGE_KEY);
       }
@@ -38,5 +43,10 @@ export function useActiveTemplate(): ActiveTemplateState {
     setActiveTemplate(null);
   }, [setActiveTemplate]);
 
-  return { activeTemplateId, setActiveTemplate, clearTemplate };
+  return {
+    activeTemplateId: activeTemplate?.id ?? null,
+    activeTemplate,
+    setActiveTemplate,
+    clearTemplate,
+  };
 }

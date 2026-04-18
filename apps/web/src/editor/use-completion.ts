@@ -27,6 +27,8 @@ interface UseCompletionOptions {
     structuralMatch?: boolean;
     docType?: string | null;
   }) => void;
+  /** Callback when a new completion request starts (to clear stale evidence) */
+  onCompletionStart?: () => void;
 }
 
 interface CompletionState {
@@ -52,6 +54,7 @@ export function useCompletion({
   enabled = true,
   templateId,
   onEvidenceReceived,
+  onCompletionStart,
 }: UseCompletionOptions) {
   const [state, setState] = useState<CompletionState>({
     status: 'idle',
@@ -103,6 +106,9 @@ export function useCompletion({
     // Don't re-request at the same position
     if (lastRequestedPos.current === from) return;
     lastRequestedPos.current = from;
+
+    // Clear stale evidence from previous completion
+    onCompletionStart?.();
 
     // Cancel any previous request
     if (abortController.current) {
@@ -294,7 +300,7 @@ export function useCompletion({
         error: err instanceof Error ? err.message : 'Error de conexión',
       });
     }
-  }, [editor, sessionId, enabled, templateId, onEvidenceReceived]);
+  }, [editor, sessionId, enabled, templateId, onEvidenceReceived, onCompletionStart]);
 
   /**
    * Trigger completion after debounce period (A-064).

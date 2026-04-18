@@ -12,6 +12,12 @@ export interface EvidenceHit {
   documentTitle: string | null;
   similarity: number;
   excerpt: string;
+  metadata?: {
+    docType?: string | null;
+    section?: string | null;
+    clauseType?: string | null;
+    tags?: string[];
+  } | null;
 }
 
 /**

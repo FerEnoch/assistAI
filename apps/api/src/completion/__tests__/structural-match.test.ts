@@ -135,6 +135,7 @@ describe('StructuralMatchService', () => {
         documentTitle: 'Contrato Locación 2024',
         similarity: 0.91,
         excerpt: hit.content.slice(0, 200),
+        metadata: null,
       });
     });
 

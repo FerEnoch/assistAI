@@ -11,6 +11,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  HttpException,
   BadRequestException,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -18,6 +19,27 @@ import type { Request, Response } from 'express';
 import { SessionGuard, RecentAuthGuard } from '../auth/guards';
 import { SourceService } from './source.service';
 import { DriveOAuthService } from './drive-oauth.service';
+import { isDriveAuthFailure } from '@assistai/shared';
+import type { ContentSource } from '@assistai/entities';
+
+/**
+ * Sanitize a ContentSource entity for API responses.
+ * Strips sensitive/internal fields: encrypted tokens, key version, page tokens.
+ */
+function toSourceView(source: ContentSource) {
+  return {
+    id: source.id,
+    workspaceId: source.workspaceId,
+    sourceType: source.sourceType,
+    status: source.status,
+    connectedAccountEmail: source.connectedAccountEmail ?? null,
+    rootLocator: source.rootLocator ?? null,
+    lastSyncedAt: source.lastSyncedAt ?? null,
+    hasToken: !!source.googleRefreshTokenEnc,
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
+  };
+}
 
 /**
  * Helper to safely extract workspaceId from session.
@@ -66,7 +88,7 @@ export class SourceController {
 
     await this.sourceService.handleCallback(code, state, req.sessionID);
     const webUrl = process.env.WEB_URL ?? 'http://localhost:5173';
-    res.redirect(`${webUrl}/dashboard?source=connected`);
+    res.redirect(`${webUrl}/library?source=connected`);
   }
 
   /**
@@ -76,7 +98,8 @@ export class SourceController {
   @Get()
   @UseGuards(SessionGuard)
   async listSources(@Req() req: Request) {
-    return this.sourceService.getSourcesForWorkspace(getWorkspaceId(req));
+    const sources = await this.sourceService.getSourcesForWorkspace(getWorkspaceId(req));
+    return sources.map(toSourceView);
   }
 
   /**
@@ -137,9 +160,22 @@ export class SourceController {
   ) {
     const source = await this.sourceService.getSource(id, getWorkspaceId(req));
     const refreshToken = this.sourceService.getDecryptedRefreshToken(source);
-    const { accessToken } = await this.driveOAuth.refreshAccessToken(refreshToken);
 
-    return this.driveOAuth.listFiles(accessToken, { query, pageToken });
+    try {
+      const { accessToken } = await this.driveOAuth.refreshAccessToken(refreshToken);
+      return await this.driveOAuth.listFiles(accessToken, { query, pageToken });
+    } catch (err: any) {
+      // Use shared classifier — only genuine token/OAuth failures trigger reauth,
+      // not ordinary per-file 403s
+      if (isDriveAuthFailure(err)) {
+        await this.sourceService.markNeedsReauth(id, getWorkspaceId(req));
+        throw new HttpException(
+          { error: { code: 'REAUTH_REQUIRED', message: 'Drive requires re-authentication' } },
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      throw err;
+    }
   }
 
   /**

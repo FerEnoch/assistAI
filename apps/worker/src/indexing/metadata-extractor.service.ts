@@ -16,10 +16,11 @@ import type {
 export class MetadataExtractor {
   extract(content: string, docHint?: string): ChunkMetadata {
     const docType = this.detectDocType(content, docHint);
+    const section = this.detectSection(content);
     return {
       docType,
-      section: this.detectSection(content),
-      clauseType: this.detectClauseType(content),
+      section,
+      clauseType: section === 'clausulas' ? this.detectClauseType(content) : null,
       tags: this.extractTags(content, docType),
       isTemplate: false,
       sourceTemplateId: null,
@@ -28,6 +29,15 @@ export class MetadataExtractor {
 
   private detectDocType(content: string, hint?: string): LegalDocType {
     const lower = content.toLowerCase();
+    // Content patterns have PRECEDENCE over docHint (spec T-4.3)
+    if (/contrato de|las partes acuerdan/.test(lower)) return 'CONTRATO';
+    if (/\bdemanda\b|\bactor\b|\bdemandado\b/.test(lower)) return 'DEMANDA';
+    if (/\bacta\b|reuni[oó]n|sesi[oó]n/.test(lower)) return 'ACTA';
+    if (/providencia|juzgado|autos y vistos/.test(lower)) return 'PROVIDENCIA';
+    if (/resoluci[oó]n|\bvisto\s+el\b|\bvisto\s+y\s+considerando\b|\bvistos\s+los\b|considerando/.test(lower))
+      return 'RESOLUCIÓN';
+    if (/poder especial|poder general|apoderado/.test(lower)) return 'PODER';
+    // Fallback to hint only if content detection found nothing
     if (hint) {
       const hintLower = hint.toLowerCase();
       if (/contrato/.test(hintLower)) return 'CONTRATO';
@@ -37,13 +47,6 @@ export class MetadataExtractor {
       if (/resoluci[oó]n/.test(hintLower)) return 'RESOLUCIÓN';
       if (/poder/.test(hintLower)) return 'PODER';
     }
-    if (/contrato de|las partes acuerdan/.test(lower)) return 'CONTRATO';
-    if (/\bdemanda\b|\bactor\b|\bdemandado\b/.test(lower)) return 'DEMANDA';
-    if (/\bacta\b|reuni[oó]n|sesi[oó]n/.test(lower)) return 'ACTA';
-    if (/providencia|juzgado|autos y vistos/.test(lower)) return 'PROVIDENCIA';
-    if (/resoluci[oó]n|\bvisto\s+el\b|\bvisto\s+y\s+considerando\b|\bvistos\s+los\b|considerando/.test(lower))
-      return 'RESOLUCIÓN';
-    if (/poder especial|poder general|apoderado/.test(lower)) return 'PODER';
     return null;
   }
 
@@ -61,7 +64,7 @@ export class MetadataExtractor {
       return 'clausulas';
     if (/\bresuelve\b|\bfalla\b|se resuelve|por ello\s*,?\s*resuelvo|fallo definitivo/.test(lower))
       return 'fallo';
-    return 'cuerpo';
+    return null;
   }
 
   private detectClauseType(content: string): ClauseType {

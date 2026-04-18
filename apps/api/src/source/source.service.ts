@@ -75,7 +75,7 @@ export class SourceService {
       // Update existing source
       source.googleRefreshTokenEnc = encryptedRefreshToken;
       source.status = 'connected';
-      source.rootLocator = email ?? null;
+      source.connectedAccountEmail = email ?? null;
     } else {
       // Create new source
       source = this.sourceRepo.create({
@@ -83,7 +83,7 @@ export class SourceService {
         sourceType: 'google_drive',
         googleRefreshTokenEnc: encryptedRefreshToken,
         status: 'connected',
-        rootLocator: email ?? null,
+        connectedAccountEmail: email ?? null,
       });
     }
 
@@ -167,7 +167,7 @@ export class SourceService {
   ): Promise<SourceSyncRun> {
     const source = await this.getSource(sourceId, workspaceId);
 
-    if (source.status !== 'connected') {
+    if (source.status !== 'connected' && source.status !== 'syncing') {
       throw new BadRequestException('Source is not connected');
     }
 
@@ -175,6 +175,7 @@ export class SourceService {
     // selectedFileIds stores the specific Drive file IDs chosen by the user.
     source.rootLocator = rootLocator;
     source.selectedFileIds = fileIds?.length ? fileIds : null;
+    source.status = 'syncing';
     await this.sourceRepo.save(source);
 
     // Create sync run record
@@ -239,10 +240,21 @@ export class SourceService {
       id: source.id,
       status: source.status,
       sourceType: source.sourceType,
-      connectedEmail: source.rootLocator ?? null,
+      connectedEmail: source.connectedAccountEmail ?? null,
       lastSyncedAt: source.lastSyncedAt ?? null,
       hasToken: !!source.googleRefreshTokenEnc,
     };
+  }
+
+  /**
+   * Mark a source as needing re-authentication (REQ-6 Scenario 6.2).
+   * Called when existing tokens have insufficient scope (old drive.file tokens).
+   */
+  async markNeedsReauth(sourceId: string, workspaceId: string): Promise<void> {
+    const source = await this.getSource(sourceId, workspaceId);
+    source.status = 'needs_reauth' as any;
+    await this.sourceRepo.save(source);
+    this.logger.warn(`Source ${sourceId} marked as needs_reauth — old scope detected`);
   }
 
   /**
@@ -262,6 +274,9 @@ export class SourceService {
     if (!source.googleRefreshTokenEnc) {
       throw new BadRequestException('Source has no stored token for syncing');
     }
+
+    // Mark source as syncing so the UI can reflect the lifecycle
+    await this.sourceRepo.update(source.id, { status: 'syncing' });
 
     // Create sync run record
     const syncRun = this.syncRunRepo.create({

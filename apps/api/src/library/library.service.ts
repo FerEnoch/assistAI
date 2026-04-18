@@ -3,17 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Document, DocumentChunk, Template } from '@assistai/entities';
 
-export interface DocTypeBreakdown {
-  docType: string;
-  count: number;
-  percentage: number;
-}
-
 export interface LibraryStatsDto {
   totalDocuments: number;
   totalChunks: number;
   totalTemplates: number;
-  docTypeBreakdown: DocTypeBreakdown[];
+  docTypeBreakdown: Record<string, number>;
 }
 
 @Injectable()
@@ -39,10 +33,11 @@ export class LibraryService {
         )
         .getCount(),
 
-      // Templates for this workspace
+      // Active templates for this workspace (T-7.2: filter by is_active)
       this.templateRepo
         .createQueryBuilder('tpl')
         .where('tpl.workspace_id = :workspaceId', { workspaceId })
+        .andWhere('tpl.is_active = true')
         .getCount(),
 
       // Chunks breakdown by docType, excluding template chunks
@@ -63,14 +58,12 @@ export class LibraryService {
       0,
     );
 
-    const docTypeBreakdown: DocTypeBreakdown[] = rawBreakdown.map((row) => ({
-      docType: row.docType ?? 'unknown',
-      count: parseInt(row.count, 10),
-      percentage:
-        totalChunks > 0
-          ? Math.round((parseInt(row.count, 10) / totalChunks) * 100)
-          : 0,
-    }));
+    // Return as Record<string, number> per spec
+    const docTypeBreakdown: Record<string, number> = {};
+    for (const row of rawBreakdown) {
+      const key = row.docType ?? 'unknown';
+      docTypeBreakdown[key] = parseInt(row.count, 10);
+    }
 
     return { totalDocuments, totalChunks, totalTemplates, docTypeBreakdown };
   }

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router';
+
 import { useTemplates, type Template, type CreateTemplateInput } from '../hooks/useTemplates';
-import { useCorpusStats, type DocTypeBreakdown } from '../hooks/useCorpusStats';
 import { useTemplateDocuments } from '../hooks/useTemplateDocuments';
 import { useSources } from '../hooks/useSources';
 import { DrivePicker } from '../components/DrivePicker';
@@ -12,6 +11,22 @@ import envConfig from '../config';
 /* ═══════════════════════════════════════════════════════════════
    Template Modal (define manually)
    ═══════════════════════════════════════════════════════════════ */
+
+/** Determines what the source section should display. Exported for testability. */
+export type SourceSectionState = 'loading' | 'error' | 'needs_reauth' | 'syncing' | 'connected' | 'disconnected';
+
+export function getSourceSectionState(
+  sources: Array<{ status: string }>,
+  isLoading: boolean,
+  error: string | null,
+): SourceSectionState {
+  if (isLoading) return 'loading';
+  if (error) return 'error';
+  if (sources.some((s) => s.status === 'needs_reauth')) return 'needs_reauth';
+  if (sources.some((s) => s.status === 'connected')) return 'connected';
+  if (sources.some((s) => s.status === 'syncing')) return 'syncing';
+  return 'disconnected';
+}
 
 interface TemplateModalProps {
   template: Template | null;
@@ -24,15 +39,15 @@ function TemplateModal({ template, onClose, onSave }: TemplateModalProps) {
   const [docType, setDocType] = useState(template?.docType ?? 'CONTRATO');
   const [description, setDescription] = useState(template?.description ?? '');
   const [sections, setSections] = useState(
-    template?.sections.map((s) => ({ name: s.name, content: s.content })) ?? [
-      { name: '', content: '' },
+    template?.sections.map((s) => ({ name: s.name, sampleContent: s.sampleContent })) ?? [
+      { name: '', sampleContent: '' },
     ],
   );
   const [saving, setSaving] = useState(false);
 
-  const handleAddSection = () => setSections([...sections, { name: '', content: '' }]);
+  const handleAddSection = () => setSections([...sections, { name: '', sampleContent: '' }]);
   const handleRemoveSection = (idx: number) => setSections(sections.filter((_, i) => i !== idx));
-  const handleSectionChange = (idx: number, field: 'name' | 'content', value: string) =>
+  const handleSectionChange = (idx: number, field: 'name' | 'sampleContent', value: string) =>
     setSections(sections.map((s, i) => (i === idx ? { ...s, [field]: value } : s)));
 
   const handleSubmit = async () => {
@@ -43,7 +58,9 @@ function TemplateModal({ template, onClose, onSave }: TemplateModalProps) {
         name: name.trim(),
         docType,
         description: description.trim() || undefined,
-        sections: sections.filter((s) => s.name.trim()),
+        sections: sections
+          .filter((s) => s.name.trim())
+          .map((s, idx) => ({ name: s.name, sampleContent: s.sampleContent, order: idx })),
       });
       onClose();
     } catch {
@@ -94,7 +111,7 @@ function TemplateModal({ template, onClose, onSave }: TemplateModalProps) {
                   <button style={modal.removeSectionBtn} onClick={() => handleRemoveSection(idx)} title="Eliminar sección">×</button>
                 )}
               </div>
-              <textarea style={{ ...modal.input, minHeight: '80px', resize: 'vertical' as const }} value={section.content} onChange={(e) => handleSectionChange(idx, 'content', e.target.value)} placeholder="Contenido o instrucciones para esta sección" />
+              <textarea style={{ ...modal.input, minHeight: '80px', resize: 'vertical' as const }} value={section.sampleContent} onChange={(e) => handleSectionChange(idx, 'sampleContent', e.target.value)} placeholder="Contenido o instrucciones para esta sección" />
             </div>
           ))}
         </div>
@@ -162,6 +179,65 @@ function UploadConfirmModal({ file, onConfirm, onCancel }: UploadConfirmModalPro
           <button style={modal.cancelBtn} onClick={onCancel}>Cancelar</button>
           <button style={{ ...modal.saveBtn, opacity: saving || !name.trim() ? 0.6 : 1 }} onClick={() => void handleConfirm()} disabled={saving || !name.trim()}>
             {saving ? 'Subiendo...' : 'Confirmar y subir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Drive Confirm Modal (name + docType before importing)
+   ═══════════════════════════════════════════════════════════════ */
+
+interface DriveConfirmModalProps {
+  fileName: string;
+  onConfirm: (name: string, docType: string) => Promise<void>;
+  onCancel: () => void;
+}
+
+function DriveConfirmModal({ fileName, onConfirm, onCancel }: DriveConfirmModalProps) {
+  const [name, setName] = useState(fileName);
+  const [docType, setDocType] = useState('CONTRATO');
+  const [saving, setSaving] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await onConfirm(name.trim(), docType);
+      onCancel();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={modal.overlay} onClick={onCancel}>
+      <div style={{ ...modal.container, maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
+        <h2 style={modal.title}>Importar desde Drive</h2>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          Archivo: <strong>{fileName}</strong>
+        </p>
+        <div style={modal.field}>
+          <label style={modal.label}>Nombre del template</label>
+          <input style={modal.input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del template" />
+        </div>
+        <div style={modal.field}>
+          <label style={modal.label}>Tipo de documento</label>
+          <select style={modal.input} value={docType} onChange={(e) => setDocType(e.target.value)}>
+            <option value="CONTRATO">Contrato</option>
+            <option value="DEMANDA">Demanda</option>
+            <option value="CONTESTACION">Contestación</option>
+            <option value="RECURSO">Recurso</option>
+            <option value="DICTAMEN">Dictamen</option>
+            <option value="OTRO">Otro</option>
+          </select>
+        </div>
+        <div style={modal.actions}>
+          <button style={modal.cancelBtn} onClick={onCancel}>Cancelar</button>
+          <button style={{ ...modal.saveBtn, opacity: saving || !name.trim() ? 0.6 : 1 }} onClick={() => void handleConfirm()} disabled={saving || !name.trim()}>
+            {saving ? 'Importando...' : 'Confirmar e importar'}
           </button>
         </div>
       </div>
@@ -243,7 +319,32 @@ interface TemplateCorpusPanelProps {
 }
 
 function TemplateCorpusPanel({ templateId, onClose }: TemplateCorpusPanelProps) {
-  const { documents, isLoading, removeDocument } = useTemplateDocuments(templateId);
+  const { documents, isLoading, addDocument, removeDocument } = useTemplateDocuments(templateId);
+  const [showSelector, setShowSelector] = useState(false);
+  const [workspaceDocs, setWorkspaceDocs] = useState<Array<{ id: string; title: string; ingestStatus: string }>>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+
+  const handleOpenSelector = async () => {
+    setShowSelector(true);
+    setLoadingDocs(true);
+    try {
+      const res = await fetch(`${envConfig.apiUrl}/documents?status=indexed`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaceDocs(data);
+      }
+    } catch { /* ignore */ } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  const associatedIds = new Set(documents.map((d) => d.id));
+  const availableDocs = workspaceDocs.filter((d) => !associatedIds.has(d.id));
+
+  const handleSelectDoc = async (docId: string) => {
+    await addDocument(docId);
+    setShowSelector(false);
+  };
 
   return (
     <div style={s.corpusPanel}>
@@ -273,6 +374,37 @@ function TemplateCorpusPanel({ templateId, onClose }: TemplateCorpusPanelProps) 
           </button>
         </div>
       ))}
+
+      <div style={{ marginTop: 'var(--space-3)' }}>
+        {!showSelector ? (
+          <button
+            style={{ ...s.connectDriveBtn, fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+            onClick={() => void handleOpenSelector()}
+          >
+            + Agregar documento
+          </button>
+        ) : (
+          <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', backgroundColor: '#fff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>Seleccionar documento</span>
+              <button style={s.corpusPanelClose} onClick={() => setShowSelector(false)}>×</button>
+            </div>
+            {loadingDocs && <p style={s.corpusEmpty}>Cargando documentos...</p>}
+            {!loadingDocs && availableDocs.length === 0 && (
+              <p style={s.corpusEmpty}>No hay documentos disponibles para agregar.</p>
+            )}
+            {availableDocs.map((d) => (
+              <button
+                key={d.id}
+                style={{ ...s.dropdownItem, padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-subtle)' }}
+                onClick={() => void handleSelectDoc(d.id)}
+              >
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)' }}>{d.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -290,6 +422,9 @@ interface TemplateCardProps {
 }
 
 function TemplateCard({ template, expanded, onEdit, onDelete, onToggleCorpus }: TemplateCardProps) {
+  const { documents } = useTemplateDocuments(template.id);
+  const corpusLabel = documents.length > 0 ? `${documents.length} documentos` : 'Sin corpus';
+
   return (
     <div style={{ ...s.templateCard, ...(expanded ? s.templateCardExpanded : {}) }}>
       <div style={s.templateCardBody}>
@@ -298,7 +433,7 @@ function TemplateCard({ template, expanded, onEdit, onDelete, onToggleCorpus }: 
           <div>
             <p style={s.templateName}>{template.name}</p>
             <button style={s.sectionTag} onClick={onToggleCorpus} title="Ver corpus">
-              {template.sections.length} secciones · corpus
+              {corpusLabel}
             </button>
           </div>
         </div>
@@ -314,75 +449,6 @@ function TemplateCard({ template, expanded, onEdit, onDelete, onToggleCorpus }: 
           onClose={onToggleCorpus}
         />
       )}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Stats Card
-   ═══════════════════════════════════════════════════════════════ */
-
-const DOC_TYPE_COLORS: Record<string, string> = {
-  CONTRATO: '#2a2420',
-  DEMANDA: '#6b6560',
-};
-const DEFAULT_BAR_COLOR = '#9e9691';
-
-function getBarColor(docType: string): string {
-  return DOC_TYPE_COLORS[docType] ?? DEFAULT_BAR_COLOR;
-}
-
-function StatsCard({
-  stats,
-  isLoading,
-}: {
-  stats: { totalDocuments: number; totalChunks: number; docTypeBreakdown: DocTypeBreakdown[] } | null;
-  isLoading: boolean;
-}) {
-  if (isLoading) {
-    return (
-      <div style={s.card}>
-        <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>Cargando estadísticas...</p>
-      </div>
-    );
-  }
-
-  const total = stats?.totalDocuments ?? 0;
-  const chunks = stats?.totalChunks ?? 0;
-  const breakdown = stats?.docTypeBreakdown ?? [];
-
-  return (
-    <div style={{ ...s.card, position: 'relative' as const }}>
-      <h3 style={s.statsTitle}>Tu corpus</h3>
-
-      <p style={s.bigNumber}>{total.toLocaleString()}</p>
-      <p style={s.statsLabel}>Total Documentos Indexados</p>
-
-      <p style={{ ...s.bigNumber, marginTop: 'var(--space-4)' }}>{chunks.toLocaleString()}</p>
-      <p style={s.statsLabel}>Total Chunks</p>
-
-      {breakdown.length > 0 && (
-        <>
-          <hr style={s.divider} />
-          <p style={{ ...s.statsLabel, marginBottom: 'var(--space-3)', fontWeight: 600 }}>
-            Distribución por tipos
-          </p>
-          {breakdown.map((item) => (
-            <div key={item.docType} style={{ marginBottom: 'var(--space-3)' }}>
-              <div style={s.breakdownRow}>
-                <span style={s.breakdownType}>{item.docType}</span>
-                <span style={s.breakdownBadge}>{item.percentage}%</span>
-                <span style={s.breakdownCount}>{item.count}</span>
-              </div>
-              <div style={s.barTrack}>
-                <div style={{ height: '100%', width: `${item.percentage}%`, backgroundColor: getBarColor(item.docType), borderRadius: 'var(--radius-pill)', transition: 'width var(--duration-normal) var(--ease-out)' }} />
-              </div>
-            </div>
-          ))}
-        </>
-      )}
-
-      <button style={s.helpFab} title="Ayuda">?</button>
     </div>
   );
 }
@@ -422,13 +488,11 @@ function EmptyState({
    Library Page
    ═══════════════════════════════════════════════════════════════ */
 
-type ModalMode = 'manual' | 'upload' | 'drive' | 'drive-index' | null;
+type ModalMode = 'manual' | 'upload' | 'drive' | 'drive-confirm' | 'drive-index' | 'drive-not-connected' | null;
 
 export function LibraryPage() {
-  const { templates, isLoading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates();
-  const { stats, isLoading: statsLoading } = useCorpusStats();
-  const { sources, isLoading: sourcesLoading, refetch: refetchSources } = useSources();
-  const [searchParams] = useSearchParams();
+  const { templates, isLoading: templatesLoading, refetch: refetchTemplates, createTemplate, updateTemplate, deleteTemplate } = useTemplates();
+  const { sources, isLoading: sourcesLoading, error: sourcesError, refetch: refetchSources } = useSources();
 
   const [search, setSearch] = useState('');
   const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -436,20 +500,11 @@ export function LibraryPage() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingDrive, setPendingDrive] = useState<{ fileId: string; name: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const hasHandledRedirect = useRef(false);
   const isSubmittingDrive = useRef(false);
-
-  // One-shot refetch when returning from Google OAuth
-  useEffect(() => {
-    if (searchParams.get('source') === 'connected' && !hasHandledRedirect.current) {
-      hasHandledRedirect.current = true;
-      refetchSources();
-      window.history.replaceState({}, '', '/library');
-    }
-  }, [searchParams, refetchSources]);
 
   // Auto-dismiss feedback message after 5s
   useEffect(() => {
@@ -458,7 +513,13 @@ export function LibraryPage() {
     return () => clearTimeout(timer);
   }, [feedbackMessage]);
 
-  const connectedSource = sources.find((s) => s.status === 'connected' || s.status === 'syncing');
+  // Reauth handler — refetch sources so UI transitions to needs_reauth state
+  const handleReauthRequired = useCallback(() => {
+    void refetchSources();
+  }, [refetchSources]);
+
+  const connectedSource = sources.find((s) => s.status === 'connected');
+  const needsReauthSource = sources.find((s) => s.status === 'needs_reauth');
 
   const handleConnectDrive = () => {
     window.location.href = `${envConfig.apiUrl}/sources/drive/connect`;
@@ -523,25 +584,47 @@ export function LibraryPage() {
     }
 
     setPendingFile(null);
+    setModalMode(null);
+    refetchTemplates();
   };
 
-  // Drive import flow (creates a template from a Drive file)
-  const handleDriveImport = async (fileIds: string[], rootLocator: string) => {
+  // Drive import flow — step 1: pick file, step 2: confirm with docType
+  const handleDriveFilePicked = (fileIds: string[], rootLocator: string) => {
     if (!connectedSource || fileIds.length === 0) return;
-    const fileId = fileIds[0];
+    setPendingDrive({ fileId: fileIds[0], name: rootLocator || 'Archivo de Drive' });
+    setModalMode('drive-confirm');
+  };
+
+  // Drive import flow — step 2: send to backend with docType
+  const handleDriveImportConfirm = async (name: string, docType: string) => {
+    if (!connectedSource || !pendingDrive) return;
     const csrfToken = await getCsrfToken();
     const res = await fetch(`${envConfig.apiUrl}/templates/from-drive`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
       body: JSON.stringify({
-        fileId,
+        fileId: pendingDrive.fileId,
         sourceId: connectedSource.id,
-        name: rootLocator || fileId,
+        name,
+        docType,
       }),
     });
-    if (!res.ok) setUploadError('Error al importar desde Drive');
+    if (!res.ok) {
+      let errorMsg = 'Error al importar desde Drive';
+      try {
+        const body = await res.json();
+        if (body.code === 'SOURCE_NEEDS_REAUTH' || body.message?.code === 'SOURCE_NEEDS_REAUTH') {
+          errorMsg = 'Tu cuenta de Drive necesita re-autenticación. Por favor, reconectá Google Drive.';
+          void refetchSources(); // Refresh source state so UI shows reauth banner
+        }
+      } catch { /* ignore parse error */ }
+      setUploadError(errorMsg);
+      throw new Error('Drive import failed');
+    }
+    setPendingDrive(null);
     setModalMode(null);
+    refetchTemplates();
   };
 
   // Drive indexing flow (queues files for ingestion via POST /sources/:id/select)
@@ -555,7 +638,7 @@ export function LibraryPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ rootLocator }),
+        body: JSON.stringify({ rootLocator, fileIds }),
       });
       if (res.ok) {
         setModalMode(null);
@@ -596,6 +679,55 @@ export function LibraryPage() {
             )}
           </div>
 
+          {/* ── Drive source section (loading / error / connected / disconnected) ── */}
+          {sourcesLoading && (
+            <div style={s.sourceSection}>
+              <p style={s.sourceLoadingText}>Cargando fuentes...</p>
+            </div>
+          )}
+
+          {!sourcesLoading && sourcesError && (
+            <div style={s.sourceSection}>
+              <p style={s.sourceErrorText}>{sourcesError}</p>
+              <button style={s.retryBtn} onClick={() => void refetchSources()}>Reintentar</button>
+            </div>
+          )}
+
+          {!sourcesLoading && !sourcesError && needsReauthSource && !connectedSource && (
+            <div style={s.sourceSection}>
+              <p style={s.sourceReauthText}>
+                Tu cuenta de Drive necesita re-autenticación (permisos actualizados).
+              </p>
+              <button style={s.connectDriveBtn} onClick={handleConnectDrive}>
+                Re-conectar Google Drive
+              </button>
+            </div>
+          )}
+
+          {!sourcesLoading && !sourcesError && !connectedSource && !needsReauthSource && sources.some((src) => src.status === 'syncing') && (
+            <div style={s.sourceSection}>
+              <p style={s.sourceLoadingText}>
+                Google Drive se está sincronizando. Las acciones de Drive estarán disponibles cuando termine.
+              </p>
+            </div>
+          )}
+
+          {!sourcesLoading && !sourcesError && connectedSource && (
+            <div style={s.sourceSection}>
+              <p style={s.sourceConnectedEmail}>
+                {connectedSource.connectedAccountEmail ?? 'Cuenta conectada'}
+              </p>
+              <div style={s.sourceActions}>
+                <button style={s.newBtn} onClick={() => setModalMode('drive-index')}>
+                  Seleccionar archivos
+                </button>
+                <button style={{ ...s.connectDriveBtn, opacity: 0.5, cursor: 'not-allowed' }} disabled>
+                  Desconectar
+                </button>
+              </div>
+            </div>
+          )}
+
           {uploadError && (
             <div style={s.errorBanner}>
               <span>{uploadError}</span>
@@ -630,7 +762,7 @@ export function LibraryPage() {
                     if (connectedSource) {
                       setModalMode('drive');
                     } else {
-                      handleConnectDrive();
+                      setModalMode('drive-not-connected');
                     }
                   }}
                   onClose={() => setShowNewMenu(false)}
@@ -674,9 +806,22 @@ export function LibraryPage() {
           </div>
         </div>
 
-        {/* ── Right column ── */}
+        {/* ── Right column: corpus panel for selected template ── */}
         <div style={s.rightCol}>
-          <StatsCard stats={stats} isLoading={statsLoading} />
+          {expandedTemplateId ? (
+            <div style={s.card}>
+              <TemplateCorpusPanel
+                templateId={expandedTemplateId}
+                onClose={() => setExpandedTemplateId(null)}
+              />
+            </div>
+          ) : (
+            <div style={s.card}>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem' }}>
+                Seleccioná un template para ver su corpus de documentos.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -701,8 +846,17 @@ export function LibraryPage() {
         <DrivePicker
           sourceId={connectedSource.id}
           singleSelect
-          onSelect={(fileIds, rootLocator) => void handleDriveImport(fileIds, rootLocator)}
+          onSelect={(fileIds, rootLocator) => handleDriveFilePicked(fileIds, rootLocator)}
           onCancel={() => setModalMode(null)}
+          onReauthRequired={handleReauthRequired}
+        />
+      )}
+
+      {modalMode === 'drive-confirm' && pendingDrive && (
+        <DriveConfirmModal
+          fileName={pendingDrive.name}
+          onConfirm={handleDriveImportConfirm}
+          onCancel={() => { setModalMode(null); setPendingDrive(null); }}
         />
       )}
 
@@ -711,7 +865,23 @@ export function LibraryPage() {
           sourceId={connectedSource.id}
           onSelect={(fileIds, rootLocator) => void handleIndexFromDrive(fileIds, rootLocator)}
           onCancel={() => setModalMode(null)}
+          onReauthRequired={handleReauthRequired}
         />
+      )}
+
+      {modalMode === 'drive-not-connected' && (
+        <div style={modal.overlay} onClick={() => setModalMode(null)}>
+          <div style={{ ...modal.container, maxWidth: '420px', textAlign: 'center' as const }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modal.title}>Drive no conectado</h2>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-6)', lineHeight: 1.6 }}>
+              Conectá tu Google Drive para importar archivos como base de un template.
+            </p>
+            <div style={modal.actions}>
+              <button style={modal.cancelBtn} onClick={() => setModalMode(null)}>Cancelar</button>
+              <button style={modal.saveBtn} onClick={handleConnectDrive}>Conectar Google Drive</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1240,5 +1410,57 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     cursor: 'pointer',
     boxShadow: 'var(--shadow-md)',
+  },
+
+  /* Source section */
+  sourceSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-3)',
+    padding: 'var(--space-4)',
+    backgroundColor: 'var(--bg-secondary)',
+    borderRadius: 'var(--radius-lg)',
+    marginBottom: 'var(--space-4)',
+    border: '1px solid var(--border-subtle)',
+  },
+  sourceLoadingText: {
+    fontSize: '0.875rem',
+    color: 'var(--text-tertiary)',
+    margin: 0,
+  },
+  sourceErrorText: {
+    fontSize: '0.875rem',
+    color: '#dc2626',
+    margin: 0,
+    flex: 1,
+  },
+  sourceReauthText: {
+    fontSize: '0.875rem',
+    color: '#d97706',
+    margin: 0,
+    flex: 1,
+  },
+  sourceConnectedEmail: {
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    color: 'var(--text-primary)',
+    margin: 0,
+    flex: 1,
+  },
+  sourceActions: {
+    display: 'flex',
+    gap: 'var(--space-2)',
+    flexShrink: 0,
+  },
+  retryBtn: {
+    padding: '0.5rem 1rem',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    color: '#dc2626',
+    backgroundColor: '#fef2f2',
+    border: '1px solid #dc2626',
+    borderRadius: 'var(--radius-pill)',
+    cursor: 'pointer',
+    flexShrink: 0,
   },
 };

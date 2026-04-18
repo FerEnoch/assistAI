@@ -50,6 +50,26 @@ async function selectFiles(
   return { ok: true };
 }
 
+/**
+ * Double-submit guard logic extracted from handleIndexFromDrive.
+ * isSubmitting is a ref (.current) so it survives re-renders without triggering them.
+ */
+async function guardedSelectFiles(
+  isSubmittingRef: { current: boolean },
+  apiUrl: string,
+  sourceId: string,
+  rootLocator: string,
+  csrfToken: string,
+): Promise<SelectResult | null> {
+  if (isSubmittingRef.current) return null;
+  isSubmittingRef.current = true;
+  try {
+    return await selectFiles(apiUrl, sourceId, [], rootLocator, csrfToken);
+  } finally {
+    isSubmittingRef.current = false;
+  }
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('LibraryPage — source state logic (migrated from Dashboard)', () => {
@@ -136,3 +156,49 @@ describe('LibraryPage — handleSelectFiles logic', () => {
     expect(result).toEqual({ ok: false, error: 'Error al guardar la selección' });
   });
 });
+
+describe('LibraryPage — handleIndexFromDrive double-submit prevention', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('does NOT dispatch a second fetch when isSubmitting is true', async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true } as Response);
+
+    const isSubmittingRef = { current: true }; // already in-flight
+    const result = await guardedSelectFiles(isSubmittingRef, 'http://api', 'src-1', 'root', 'tok');
+
+    expect(result).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('resets isSubmitting to false after a successful call', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
+
+    const isSubmittingRef = { current: false };
+    await guardedSelectFiles(isSubmittingRef, 'http://api', 'src-1', 'root', 'tok');
+
+    expect(isSubmittingRef.current).toBe(false);
+  });
+
+  it('resets isSubmitting to false even when the call fails', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'));
+
+    const isSubmittingRef = { current: false };
+    try {
+      await guardedSelectFiles(isSubmittingRef, 'http://api', 'src-1', 'root', 'tok');
+    } catch {
+      // expected
+    }
+
+    expect(isSubmittingRef.current).toBe(false);
+  });
+});
+

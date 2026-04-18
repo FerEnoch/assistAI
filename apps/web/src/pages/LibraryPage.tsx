@@ -422,7 +422,7 @@ function EmptyState({
    Library Page
    ═══════════════════════════════════════════════════════════════ */
 
-type ModalMode = 'manual' | 'upload' | 'drive' | null;
+type ModalMode = 'manual' | 'upload' | 'drive' | 'drive-index' | null;
 
 export function LibraryPage() {
   const { templates, isLoading: templatesLoading, createTemplate, updateTemplate, deleteTemplate } = useTemplates();
@@ -437,8 +437,10 @@ export function LibraryPage() {
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasHandledRedirect = useRef(false);
+  const isSubmittingDrive = useRef(false);
 
   // One-shot refetch when returning from Google OAuth
   useEffect(() => {
@@ -448,6 +450,13 @@ export function LibraryPage() {
       window.history.replaceState({}, '', '/library');
     }
   }, [searchParams, refetchSources]);
+
+  // Auto-dismiss feedback message after 5s
+  useEffect(() => {
+    if (!feedbackMessage) return;
+    const timer = setTimeout(() => setFeedbackMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [feedbackMessage]);
 
   const connectedSource = sources.find((s) => s.status === 'connected' || s.status === 'syncing');
 
@@ -516,7 +525,7 @@ export function LibraryPage() {
     setPendingFile(null);
   };
 
-  // Drive import flow
+  // Drive import flow (creates a template from a Drive file)
   const handleDriveImport = async (fileIds: string[], rootLocator: string) => {
     if (!connectedSource || fileIds.length === 0) return;
     const fileId = fileIds[0];
@@ -533,6 +542,32 @@ export function LibraryPage() {
     });
     if (!res.ok) setUploadError('Error al importar desde Drive');
     setModalMode(null);
+  };
+
+  // Drive indexing flow (queues files for ingestion via POST /sources/:id/select)
+  const handleIndexFromDrive = async (fileIds: string[], rootLocator: string) => {
+    if (!connectedSource || fileIds.length === 0) return;
+    if (isSubmittingDrive.current) return;
+    isSubmittingDrive.current = true;
+    try {
+      const csrfToken = await getCsrfToken();
+      const res = await fetch(`${envConfig.apiUrl}/sources/${connectedSource.id}/select`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ rootLocator }),
+      });
+      if (res.ok) {
+        setModalMode(null);
+        setFeedbackMessage('Indexación iniciada. Los documentos aparecerán en el estado de indexación.');
+      } else {
+        setFeedbackMessage('Error al iniciar la indexación. Intentá de nuevo.');
+      }
+    } catch {
+      setFeedbackMessage('Error al iniciar la indexación. Intentá de nuevo.');
+    } finally {
+      isSubmittingDrive.current = false;
+    }
   };
 
   const showEmpty = !templatesLoading && filtered.length === 0 && !search;
@@ -565,6 +600,13 @@ export function LibraryPage() {
             <div style={s.errorBanner}>
               <span>{uploadError}</span>
               <button style={s.errorBannerClose} onClick={() => setUploadError(null)}>×</button>
+            </div>
+          )}
+
+          {feedbackMessage && (
+            <div style={s.feedbackBanner}>
+              <span>{feedbackMessage}</span>
+              <button style={s.errorBannerClose} onClick={() => setFeedbackMessage(null)}>×</button>
             </div>
           )}
 
@@ -660,6 +702,14 @@ export function LibraryPage() {
           sourceId={connectedSource.id}
           singleSelect
           onSelect={(fileIds, rootLocator) => void handleDriveImport(fileIds, rootLocator)}
+          onCancel={() => setModalMode(null)}
+        />
+      )}
+
+      {modalMode === 'drive-index' && connectedSource && (
+        <DrivePicker
+          sourceId={connectedSource.id}
+          onSelect={(fileIds, rootLocator) => void handleIndexFromDrive(fileIds, rootLocator)}
           onCancel={() => setModalMode(null)}
         />
       )}
@@ -828,6 +878,18 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: 'var(--space-4)',
     fontSize: '0.875rem',
     color: '#dc2626',
+  },
+  feedbackBanner: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderLeft: '4px solid #16a34a',
+    borderRadius: 'var(--radius-md)',
+    padding: '0.75rem 1rem',
+    marginBottom: 'var(--space-4)',
+    fontSize: '0.875rem',
+    color: '#16a34a',
   },
   errorBannerClose: {
     fontSize: '1.1rem',

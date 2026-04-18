@@ -89,3 +89,73 @@ describe('fetchSourcesFromApi()', () => {
     expect(result).toEqual([]);
   });
 });
+
+// ──────────────────────────────────────────────
+// T-2.6: ?source=connected redirect logic
+// The hook itself is pure fetch; the redirect detection lives in LibraryPage.
+// We test the extracted logic here as a pure function.
+// ──────────────────────────────────────────────
+
+/**
+ * Pure function extracted from LibraryPage's useEffect that handles
+ * the ?source=connected query param after OAuth redirect.
+ */
+function handleRedirectParam(
+  sourceParam: string | null,
+  hasHandledRef: { current: boolean },
+  refetch: () => void,
+  replaceState: (url: string) => void,
+): void {
+  if (sourceParam === 'connected' && !hasHandledRef.current) {
+    hasHandledRef.current = true;
+    refetch();
+    replaceState('/library');
+  }
+}
+
+describe('handleRedirectParam() — ?source=connected one-shot logic', () => {
+  it('calls refetch and replaceState when source=connected arrives', () => {
+    const refetch = vi.fn();
+    const replaceState = vi.fn();
+    const hasHandledRef = { current: false };
+
+    handleRedirectParam('connected', hasHandledRef, refetch, replaceState);
+
+    expect(refetch).toHaveBeenCalledOnce();
+    expect(replaceState).toHaveBeenCalledWith('/library');
+    expect(hasHandledRef.current).toBe(true);
+  });
+
+  it('does NOT call refetch a second time (one-shot guard)', () => {
+    const refetch = vi.fn();
+    const replaceState = vi.fn();
+    const hasHandledRef = { current: false };
+
+    handleRedirectParam('connected', hasHandledRef, refetch, replaceState);
+    handleRedirectParam('connected', hasHandledRef, refetch, replaceState);
+
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it('does nothing when source param is null', () => {
+    const refetch = vi.fn();
+    const replaceState = vi.fn();
+    const hasHandledRef = { current: false };
+
+    handleRedirectParam(null, hasHandledRef, refetch, replaceState);
+
+    expect(refetch).not.toHaveBeenCalled();
+    expect(replaceState).not.toHaveBeenCalled();
+    expect(hasHandledRef.current).toBe(false);
+  });
+
+  it('does nothing when source param is a different value', () => {
+    const refetch = vi.fn();
+    const replaceState = vi.fn();
+    const hasHandledRef = { current: false };
+
+    handleRedirectParam('disconnected', hasHandledRef, refetch, replaceState);
+
+    expect(refetch).not.toHaveBeenCalled();
+  });
+});
